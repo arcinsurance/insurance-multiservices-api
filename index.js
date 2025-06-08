@@ -2,17 +2,13 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const axios = require('axios');
+const FormData = require('form-data');
 require('dotenv').config();
-
-const { DropboxSign } = require('@dropbox/sign');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '20mb' }));
-
-// Configuración de Dropbox Sign
-const dropboxSign = new DropboxSign();
-dropboxSign.auth(process.env.DROPBOXSIGN_API_KEY);
 
 // API /api/send-email
 app.post('/api/send-email', async (req, res) => {
@@ -49,36 +45,48 @@ app.post('/api/send-email', async (req, res) => {
     }
 });
 
-// API /api/send-to-sign
+// API /api/send-to-sign (con axios REST API)
 app.post('/api/send-to-sign', async (req, res) => {
     const { recipientEmail, documentName, documentBase64 } = req.body;
 
     try {
-        const fileBuffer = Buffer.from(documentBase64.split('base64,')[1], 'base64');
+        const formData = new FormData();
+        formData.append('test_mode', '1');
+        formData.append('title', documentName);
+        formData.append('subject', 'Por favor firme el documento');
+        formData.append('message', 'Estimado cliente, le enviamos el documento para su firma.');
+        formData.append('signers[0][email_address]', recipientEmail);
+        formData.append('signers[0][name]', recipientEmail.split('@')[0]);
 
-        const response = await dropboxSign.signatureRequest.send({
-            test_mode: true,
-            title: documentName,
-            subject: 'Por favor firme el documento',
-            message: 'Estimado cliente, le enviamos el documento para su firma.',
-            signers: [
-                { email_address: recipientEmail, name: recipientEmail.split('@')[0] }
-            ],
-            files: [
-                {
-                    name: documentName,
-                    file: fileBuffer
-                }
-            ]
+        // Convertir base64 a Buffer para enviarlo como archivo
+        const fileBuffer = Buffer.from(documentBase64.split('base64,')[1], 'base64');
+        formData.append('file', fileBuffer, {
+            filename: documentName,
+            contentType: 'application/pdf'
         });
+
+        const response = await axios.post(
+            'https://api.hellosign.com/v3/signature_request/send',
+            formData,
+            {
+                auth: {
+                    username: process.env.DROPBOXSIGN_API_KEY,
+                    password: ''
+                },
+                headers: formData.getHeaders()
+            }
+        );
 
         res.json({
             status: 'ok',
-            signatureRequestId: response.signature_request.signature_request_id
+            signatureRequestId: response.data.signature_request.signature_request_id
         });
     } catch (error) {
         console.error('Error enviando a firma:', error.response?.data || error.message);
-        res.status(500).json({ status: 'error', message: error.response?.data || error.message });
+        res.status(500).json({
+            status: 'error',
+            message: error.response?.data || error.message
+        });
     }
 });
 
