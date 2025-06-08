@@ -51,7 +51,7 @@ app.post('/api/send-to-sign', async (req, res) => {
 
     try {
         const formData = new FormData();
-        formData.append('test_mode', '1');
+        formData.append('test_mode', '0');
         formData.append('title', documentName);
         formData.append('subject', 'Por favor firme el documento');
         formData.append('message', 'Estimado cliente, le enviamos el documento para su firma.');
