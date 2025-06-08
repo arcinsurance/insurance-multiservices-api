@@ -4,14 +4,16 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
-const DropboxSign = require('@dropbox/sign').default;
+const { DropboxSign } = require('@dropbox/sign');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '20mb' }));
 
 // Configuración de Dropbox Sign
-const dropboxSign = DropboxSign({ apiKey: process.env.DROPBOXSIGN_API_KEY });
+const dropboxSign = new DropboxSign();
+dropboxSign.auth(process.env.DROPBOXSIGN_API_KEY);
+
 // API /api/send-email
 app.post('/api/send-email', async (req, res) => {
     const { recipientEmail, documentName, documentBase64 } = req.body;
