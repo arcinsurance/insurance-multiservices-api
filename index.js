@@ -4,7 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
-const { DropboxSign } = require('@dropbox/sign');
+const DropboxSign = require('@dropbox/sign').default;
 
 const app = express();
 app.use(cors());
