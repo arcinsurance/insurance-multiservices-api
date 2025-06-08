@@ -12,7 +12,8 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '20mb' }));
 
 // Configuración de Dropbox Sign
-const dropboxSign = new DropboxSign({ accessKey: process.env.DROPBOXSIGN_API_KEY });
+const dropboxSign = new DropboxSign();
+dropboxSign.auth(process.env.DROPBOXSIGN_API_KEY);
 
 // API /api/send-email
 app.post('/api/send-email', async (req, res) => {
