@@ -5,14 +5,14 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
-const { DropboxSign } = require('@hellosign/hellosign-sdk');
+const { DropboxSign } = require('@dropbox/sign');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '20mb' }));
 
 // Configuración de Dropbox Sign
-const dropboxSign = new DropboxSign({ apiKey: process.env.DROPBOXSIGN_API_KEY });
+const dropboxSign = new DropboxSign({ accessKey: process.env.DROPBOXSIGN_API_KEY });
 
 // API /api/send-email
 app.post('/api/send-email', async (req, res) => {
@@ -57,7 +57,7 @@ app.post('/api/send-to-sign', async (req, res) => {
         const fileBuffer = Buffer.from(documentBase64.split('base64,')[1], 'base64');
 
         const response = await dropboxSign.signatureRequest.send({
-            test_mode: 1,
+            test_mode: true,
             title: documentName,
             subject: 'Por favor firme el documento',
             message: 'Estimado cliente, le enviamos el documento para su firma.',

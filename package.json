@@ -1,13 +1,13 @@
 
 {
   "name": "insurance-multiservices-api",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@hellosign/hellosign-sdk": "1.0.0-beta",
+    "@dropbox/sign": "^1.2.0",
     "axios": "^1.6.7",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
