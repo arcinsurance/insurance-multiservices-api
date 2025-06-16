@@ -22,7 +22,6 @@ app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) =
     form.append('message', 'Este documento requiere su firma digital.');
     form.append('signers[0][email_address]', recipientEmail);
     form.append('signers[0][name]', 'Cliente');
-    form.append('signers[0][role]', 'signer');
     form.append('test_mode', '1');
 
     try {

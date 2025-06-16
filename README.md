@@ -1,3 +1,3 @@
-# Backend para envío de documentos con HelloSign
+# Backend HelloSign clásico
 
-Sube un PDF y envía una solicitud de firma.
+Envío de PDF para firma con la API de https://api.hellosign.com/v3
