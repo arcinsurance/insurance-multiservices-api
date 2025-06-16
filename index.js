@@ -1,55 +1,50 @@
-const express = require('express');
-const multer = require('multer');
-const nodemailer = require('nodemailer');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
-dotenv.config();
+const express = require("express");
+const nodemailer = require("nodemailer");
+const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
 app.use(cors());
-const upload = multer({ storage: multer.memoryStorage() });
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.post('/api/send-communication-email', upload.array('attachments'), async (req, res) => {
-  try {
-    const { senderEmail, recipientEmail, subject, body } = req.body;
+const PORT = process.env.PORT || 10000;
 
-    if (!recipientEmail || !senderEmail) {
-      return res.status(400).json({ error: 'Faltan campos requeridos: senderEmail o recipientEmail' });
+app.post("/api/send-communication-email", async (req, res) => {
+    const { recipientEmail, subject, body, senderEmail } = req.body;
+
+    console.log("GMAIL_USER:", process.env.GMAIL_USER);
+    console.log("GMAIL_PASS:", process.env.GMAIL_PASS ? "Definida" : "VACÍA");
+
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+        return res.status(500).json({ error: "Credenciales de Gmail no definidas en el entorno." });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
-    });
+    try {
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.GMAIL_USER,
+                pass: process.env.GMAIL_PASS,
+            },
+        });
 
-    const attachments = (req.files || []).map(file => ({
-      filename: file.originalname,
-      content: file.buffer,
-    }));
+        const mailOptions = {
+            from: senderEmail || process.env.GMAIL_USER,
+            to: recipientEmail,
+            subject: subject,
+            text: body,
+        };
 
-    const mailOptions = {
-      from: senderEmail,
-      to: recipientEmail,
-      subject: subject || '(Sin asunto)',
-      text: body || '',
-      attachments: attachments,
-    };
-
-    const result = await transporter.sendMail(mailOptions);
-    console.log('Correo enviado:', result.response);
-
-    res.json({ message: 'Correo enviado correctamente.' });
-  } catch (error) {
-    console.error('Error al enviar correo:', error);
-    res.status(500).json({ error: 'Error al enviar el correo.' });
-  }
+        let info = await transporter.sendMail(mailOptions);
+        console.log("Correo enviado:", info.response);
+        res.json({ message: "Correo enviado exitosamente." });
+    } catch (error) {
+        console.error("Error al enviar correo:", error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log('Servidor activo en puerto', PORT);
+    console.log("Servidor corriendo en el puerto", PORT);
 });
