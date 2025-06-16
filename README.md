@@ -1,3 +1,3 @@
-# Backend HelloSign clásico
+# Backend para enviar correos de comunicación
 
-Envío de PDF para firma con la API de https://api.hellosign.com/v3
+Ruta POST /api/send-communication-email usando Gmail y archivos adjuntos.

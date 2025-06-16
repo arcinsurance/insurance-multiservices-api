@@ -1,47 +1,55 @@
-
 const express = require('express');
 const multer = require('multer');
-const FormData = require('form-data');
-const axios = require('axios');
-const fs = require('fs');
+const nodemailer = require('nodemailer');
 const cors = require('cors');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const path = require('path');
+dotenv.config();
 
 const app = express();
 app.use(cors());
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
 
-app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
-    const file = req.file;
-    const recipientEmail = req.body.recipientEmail;
-    const form = new FormData();
+app.post('/api/send-communication-email', upload.array('attachments'), async (req, res) => {
+  try {
+    const { senderEmail, recipientEmail, subject, body } = req.body;
 
-    form.append('file', fs.createReadStream(file.path));
-    form.append('title', 'Formulario de Consentimiento del Consumidor');
-    form.append('subject', 'Por favor, firme este documento');
-    form.append('message', 'Este documento requiere su firma digital.');
-    form.append('signers[0][email_address]', recipientEmail);
-    form.append('signers[0][name]', 'Cliente');
-    form.append('test_mode', '1');
-
-    try {
-        const response = await axios.post(
-            'https://api.hellosign.com/v3/signature_request/send',
-            form,
-            {
-                headers: {
-                    ...form.getHeaders(),
-                    Authorization: `Basic ${Buffer.from(process.env.HELLOSIGN_API_KEY + ":").toString("base64")}`,
-                },
-            }
-        );
-        res.json({ message: "Signature request sent", data: response.data });
-    } catch (err) {
-        res.status(500).json({ message: "HelloSign server error", error: err.response?.data || err.message });
+    if (!recipientEmail || !senderEmail) {
+      return res.status(400).json({ error: 'Faltan campos requeridos: senderEmail o recipientEmail' });
     }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
+      },
+    });
+
+    const attachments = (req.files || []).map(file => ({
+      filename: file.originalname,
+      content: file.buffer,
+    }));
+
+    const mailOptions = {
+      from: senderEmail,
+      to: recipientEmail,
+      subject: subject || '(Sin asunto)',
+      text: body || '',
+      attachments: attachments,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Correo enviado:', result.response);
+
+    res.json({ message: 'Correo enviado correctamente.' });
+  } catch (error) {
+    console.error('Error al enviar correo:', error);
+    res.status(500).json({ error: 'Error al enviar el correo.' });
+  }
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log('Servidor activo en puerto', PORT);
 });
