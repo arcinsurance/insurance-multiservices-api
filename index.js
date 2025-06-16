@@ -1,49 +1,48 @@
-require('dotenv').config();
+
 const express = require('express');
 const multer = require('multer');
-const axios = require('axios');
 const FormData = require('form-data');
+const axios = require('axios');
+const fs = require('fs');
 const cors = require('cors');
-const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
+require('dotenv').config();
 
+const app = express();
 app.use(cors());
-app.use(express.json());
+const upload = multer({ dest: 'uploads/' });
 
 app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+    const file = req.file;
+    const recipientEmail = req.body.recipientEmail;
+    const form = new FormData();
+
+    form.append('file', fs.createReadStream(file.path));
+    form.append('title', 'Formulario de Consentimiento del Consumidor');
+    form.append('subject', 'Por favor, firme este documento');
+    form.append('message', 'Este documento requiere su firma digital.');
+    form.append('signers[0][email_address]', recipientEmail);
+    form.append('signers[0][name]', 'Cliente');
+    form.append('signers[0][role]', 'signer');
+    form.append('test_mode', '1');
+
     try {
-        const { recipientEmail } = req.body;
-        const pdfFile = req.file;
-
-        if (!pdfFile) {
-            return res.status(400).json({ error: "No PDF file received" });
-        }
-
-        const formData = new FormData();
-        formData.append("file", pdfFile.buffer, {
-            filename: "consentimiento.pdf",
-            contentType: "application/pdf"
-        });
-        formData.append("title", "Formulario de Consentimiento del Consumidor");
-        formData.append("signers[0][email_address]", recipientEmail);
-        formData.append("signers[0][name]", "Cliente");
-        formData.append("signers[0][role]", "Cliente");
-        formData.append("test_mode", "1");
-
-        const response = await axios.post("https://api.hellosign.com/v3/signature_request/send", formData, {
-            headers: {
-                ...formData.getHeaders(),
-                Authorization: `Basic ${Buffer.from(process.env.HELLOSIGN_API_KEY + ":").toString("base64")}`
+        const response = await axios.post(
+            'https://api.hellosign.com/v3/signature_request/send',
+            form,
+            {
+                headers: {
+                    ...form.getHeaders(),
+                    Authorization: `Basic ${Buffer.from(process.env.HELLOSIGN_API_KEY + ":").toString("base64")}`,
+                },
             }
-        });
-
+        );
         res.json({ message: "Signature request sent", data: response.data });
-
-    } catch (error) {
-        console.error("HelloSign Error:", error.response?.data || error.message);
-        res.status(500).json({ error: "Failed to send to HelloSign" });
+    } catch (err) {
+        res.status(500).json({ message: "HelloSign server error", error: err.response?.data || err.message });
     }
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
