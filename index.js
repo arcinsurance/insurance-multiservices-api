@@ -1,97 +1,49 @@
+require('dotenv').config();
 const express = require('express');
-const nodemailer = require('nodemailer');
-const cors = require('cors');
-const bodyParser = require('body-parser');
+const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
-require('dotenv').config();
-
+const cors = require('cors');
 const app = express();
+const upload = multer({ storage: multer.memoryStorage() });
+
 app.use(cors());
-app.use(bodyParser.json({ limit: '20mb' }));
+app.use(express.json());
 
-// API /api/send-email
-app.post('/api/send-email', async (req, res) => {
-    const { recipientEmail, documentName, documentBase64 } = req.body;
+app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+    try {
+        const { recipientEmail } = req.body;
+        const pdfFile = req.file;
 
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
+        if (!pdfFile) {
+            return res.status(400).json({ error: "No PDF file received" });
         }
-    });
 
-    const mailOptions = {
-        from: `"Insurance Multiservices" <${process.env.EMAIL_USER}>`,
-        to: recipientEmail,
-        subject: `Documento: ${documentName}`,
-        text: 'Estimado cliente, le enviamos el documento adjunto para su revisión/firma.',
-        attachments: [
-            {
-                filename: documentName,
-                content: documentBase64.split('base64,')[1],
-                encoding: 'base64'
-            }
-        ]
-    };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        res.json({ status: 'ok' });
-    } catch (error) {
-        console.error('Error enviando email:', error);
-        res.status(500).json({ status: 'error', message: error.message });
-    }
-});
-
-// API /api/send-to-sign (con axios REST API)
-app.post('/api/send-to-sign', async (req, res) => {
-    const { recipientEmail, documentName, documentBase64 } = req.body;
-
-    try {
         const formData = new FormData();
-        formData.append('test_mode', '0');
-        formData.append('title', documentName);
-        formData.append('subject', 'Por favor firme el documento');
-        formData.append('message', 'Estimado cliente, le enviamos el documento para su firma.');
-        formData.append('signers[0][email_address]', recipientEmail);
-        formData.append('signers[0][name]', recipientEmail.split('@')[0]);
-
-        // Convertir base64 a Buffer para enviarlo como archivo
-        const fileBuffer = Buffer.from(documentBase64.split('base64,')[1], 'base64');
-        formData.append('file', fileBuffer, {
-            filename: documentName,
-            contentType: 'application/pdf'
+        formData.append("file", pdfFile.buffer, {
+            filename: "consentimiento.pdf",
+            contentType: "application/pdf"
         });
+        formData.append("title", "Formulario de Consentimiento del Consumidor");
+        formData.append("signers[0][email_address]", recipientEmail);
+        formData.append("signers[0][name]", "Cliente");
+        formData.append("signers[0][role]", "Cliente");
+        formData.append("test_mode", "1");
 
-        const response = await axios.post(
-            'https://api.hellosign.com/v3/signature_request/send',
-            formData,
-            {
-                auth: {
-                    username: process.env.DROPBOXSIGN_API_KEY,
-                    password: ''
-                },
-                headers: formData.getHeaders()
+        const response = await axios.post("https://api.hellosign.com/v3/signature_request/send", formData, {
+            headers: {
+                ...formData.getHeaders(),
+                Authorization: `Basic ${Buffer.from(process.env.HELLOSIGN_API_KEY + ":").toString("base64")}`
             }
-        );
+        });
 
-        res.json({
-            status: 'ok',
-            signatureRequestId: response.data.signature_request.signature_request_id
-        });
+        res.json({ message: "Signature request sent", data: response.data });
+
     } catch (error) {
-        console.error('Error enviando a firma:', error.response?.data || error.message);
-        res.status(500).json({
-            status: 'error',
-            message: error.response?.data || error.message
-        });
+        console.error("HelloSign Error:", error.response?.data || error.message);
+        res.status(500).json({ error: "Failed to send to HelloSign" });
     }
 });
 
-// Server
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Backend escuchando en puerto ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
