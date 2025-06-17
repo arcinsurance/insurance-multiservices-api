@@ -1,68 +1,97 @@
 
-const express = require("express");
-const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
-const axios = require("axios");
-const cors = require("cors");
-require("dotenv").config();
+const express = require('express');
+const cors = require('cors');
+const multer = require('multer');
+const nodemailer = require('nodemailer');
+const axios = require('axios');
+require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 10000;
-
+const upload = multer();
 app.use(cors());
 app.use(express.json());
 
-const upload = multer({ dest: "uploads/" });
+// Endpoint de prueba
+app.get('/', (req, res) => res.send('API en funcionamiento'));
 
-app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) => {
-    try {
-        const pdfPath = req.file.path;
-        const recipientEmail = req.body.recipientEmail;
-        const documentTitle = req.body.documentTitle || "Documento";
+// Enviar correos
+app.post('/api/send-communication-email', upload.any(), async (req, res) => {
+  try {
+    const { senderEmail, recipientEmail, subject, message } = req.body;
+    const attachments = req.files?.map(file => ({
+      filename: file.originalname,
+      content: file.buffer,
+    })) || [];
 
-        const fileData = fs.readFileSync(pdfPath);
-        const base64PDF = fileData.toString("base64");
-
-        const payload = {
-            name: documentTitle,
-            url: `data:application/pdf;base64,${base64PDF}`,
-            annotations: [
-                {
-                    x: 100,
-                    y: 100,
-                    pages: "1",
-                    type: "signature",
-                    width: 200,
-                    height: 50
-                }
-            ],
-            async: false
-        };
-
-        const response = await axios.post(
-            "https://api.pdf.co/v1/pdf/sign/add",
-            payload,
-            {
-                headers: {
-                    "x-api-key": process.env.PDFCO_API_KEY,
-                    "Content-Type": "application/json"
-                }
-            }
-        );
-
-        // Eliminar archivo temporal
-        fs.unlinkSync(pdfPath);
-
-        console.log("Respuesta PDF.co:", response.data);
-        res.json(response.data);
-
-    } catch (error) {
-        console.error("❌ Error al enviar a PDF.co:", error.response?.data || error.message);
-        res.status(500).json({ error: true, message: error.response?.data || error.message });
+    if (!recipientEmail) {
+      return res.status(400).json({ error: 'Falta destinatario' });
     }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: senderEmail || process.env.GMAIL_USER,
+      to: recipientEmail,
+      subject,
+      text: message,
+      attachments,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al enviar correo:', error);
+    res.status(500).json({ error: 'Error interno al enviar correo' });
+  }
 });
 
-app.listen(port, () => {
-    console.log(`🚀 Backend escuchando en el puerto ${port}`);
+// Enviar a PDF.co
+app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+  try {
+    const { recipientEmail, documentTitle } = req.body;
+    const apiKey = process.env.PDFCO_API_KEY;
+
+    const formData = new FormData();
+    formData.append('file', req.file.buffer, req.file.originalname);
+    formData.append('name', documentTitle);
+    formData.append('async', 'false');
+    formData.append('encrypt', 'false');
+    formData.append('annotations', JSON.stringify([{
+      text: 'Por favor firme aquí',
+      x: 100,
+      y: 150,
+      pages: '1',
+      type: 'signature',
+      width: 150,
+      height: 50,
+      recipientName: recipientEmail,
+      recipientEmail,
+    }]));
+
+    const response = await axios.post(
+      'https://api.pdf.co/v1/pdf/edit/add',
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'x-api-key': apiKey,
+        },
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error al enviar a PDF.co:', error);
+    res.status(500).json({ error: 'Error interno al procesar PDF.co' });
+  }
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`🚀 Backend escuchando en el puerto ${PORT}`);
 });
