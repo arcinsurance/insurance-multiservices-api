@@ -1,5 +1,5 @@
+
 const express = require('express');
-const nodemailer = require('nodemailer');
 const cors = require('cors');
 const multer = require('multer');
 const axios = require('axios');
@@ -11,74 +11,37 @@ const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Enviar mensajes normales por Gmail
-app.post('/api/send-communication-email', upload.any(), async (req, res) => {
+app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+  const pdfBuffer = req.file?.buffer;
+  const recipientEmail = req.body.recipientEmail;
+  const documentTitle = req.body.documentTitle;
+
+  if (!pdfBuffer || !recipientEmail || !documentTitle) {
+    return res.status(400).json({ error: true, message: 'Missing required fields.' });
+  }
+
   try {
-    const recipientEmail = req.body.recipientEmail;
-    const subject = req.body.subject || 'Mensaje de la agencia';
-    const message = req.body.message || '';
-    const senderEmail = req.body.senderEmail || process.env.GMAIL_USER;
-
-    if (!recipientEmail) {
-      return res.status(400).json({ error: 'Falta recipientEmail' });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
-    });
-
-    const mailOptions = {
-      from: senderEmail,
-      to: recipientEmail,
-      subject,
-      text: message,
+    const pdfBase64 = pdfBuffer.toString('base64');
+    const payload = {
+      name: documentTitle,
+      url: `data:application/pdf;base64,${pdfBase64}`,
+      annotations: [
+        {
+          text: "Firma aquí",
+          x: 100,
+          y: 100,
+          pages: "1",
+          type: "signature",
+          width: 200,
+          height: 50
+        }
+      ]
     };
 
-    await transporter.sendMail(mailOptions);
-    res.status(200).json({ message: 'Correo enviado correctamente.' });
-  } catch (error) {
-    console.error('Error al enviar correo:', error);
-    res.status(500).json({ error: error.message || 'Error al enviar correo' });
-  }
-});
-
-// Enviar documentos a firma vía PDF.co
-app.post('/api/send-signature-request', upload.any(), async (req, res) => {
-  try {
-    const recipientEmail = req.body.recipientEmail;
-    const documentTitle = req.body.documentTitle || 'Documento';
-    const file = req.files?.find(f => f.fieldname === 'pdf');
-
-    if (!recipientEmail || !file) {
-      return res.status(400).json({ error: 'Faltan datos requeridos.' });
-    }
-
     const pdfcoResponse = await axios.post(
-      'https://api.pdf.co/v1/pdf/sign/add',
-      {
-        url: '',
-        async: false,
-        name: documentTitle,
-        profiles: '{}',
-        annotations: [
-          {
-            x: 400,
-            y: 100,
-            text: 'Firma aquí',
-            type: 'signature',
-            pages: '1',
-            recipientName: 'Cliente',
-            recipientEmail: recipientEmail,
-            role: 'signer'
-          }
-        ]
-      },
+      'https://api.pdf.co/v1/pdf/edit/add',
+      payload,
       {
         headers: {
           'x-api-key': process.env.PDFCO_API_KEY,
@@ -87,10 +50,14 @@ app.post('/api/send-signature-request', upload.any(), async (req, res) => {
       }
     );
 
-    res.status(200).json({ message: 'Documento enviado a firma.', response: pdfcoResponse.data });
-  } catch (error) {
-    console.error('Error al enviar a firma:', error?.response?.data || error.message);
-    res.status(500).json({ error: error?.response?.data || error.message });
+    if (pdfcoResponse.data.error) {
+      return res.status(500).json({ error: true, message: pdfcoResponse.data.message });
+    }
+
+    res.json({ success: true, data: pdfcoResponse.data });
+  } catch (err) {
+    console.error('Error al enviar a PDF.co:', err.message);
+    res.status(500).json({ error: true, message: `Error al enviar a PDF.co: ${err.message}` });
   }
 });
 
