@@ -1,96 +1,69 @@
+require('dotenv').config();
 const express = require('express');
-const nodemailer = require('nodemailer');
 const cors = require('cors');
 const multer = require('multer');
+const fs = require('fs');
 const axios = require('axios');
-require('dotenv').config();
-
 const app = express();
-const upload = multer();
+const upload = multer({ dest: 'uploads/' });
 const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Enviar mensajes normales por Gmail
-app.post('/api/send-communication-email', upload.any(), async (req, res) => {
-  try {
-    const recipientEmail = req.body.recipientEmail;
-    const subject = req.body.subject || 'Mensaje de la agencia';
-    const message = req.body.message || '';
-    const senderEmail = req.body.senderEmail || process.env.GMAIL_USER;
-
-    if (!recipientEmail) {
-      return res.status(400).json({ error: 'Falta recipientEmail' });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
-    });
-
-    const mailOptions = {
-      from: senderEmail,
-      to: recipientEmail,
-      subject,
-      text: message,
-    };
-
-    await transporter.sendMail(mailOptions);
-    res.status(200).json({ message: 'Correo enviado correctamente.' });
-  } catch (error) {
-    console.error('Error al enviar correo:', error);
-    res.status(500).json({ error: error.message || 'Error al enviar correo' });
-  }
+app.get('/', (req, res) => {
+  res.send('Servidor backend para PDF.co funcionando 🚀');
 });
 
-// Enviar documentos a firma vía PDF.co
-app.post('/api/send-signature-request', upload.any(), async (req, res) => {
+app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
   try {
-    const recipientEmail = req.body.recipientEmail;
-    const documentTitle = req.body.documentTitle || 'Documento';
-    const file = req.files?.find(f => f.fieldname === 'pdf');
+    const { recipientEmail, documentTitle } = req.body;
+    const pdfPath = req.file.path;
 
-    if (!recipientEmail || !file) {
-      return res.status(400).json({ error: 'Faltan datos requeridos.' });
-    }
+    // Subir el PDF a PDF.co para generar una URL pública temporal
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(pdfPath));
 
-    const pdfcoResponse = await axios.post(
+    const uploadResponse = await axios.post(
+      'https://api.pdf.co/v1/file/upload/get-presigned-url?name=documento.pdf&contenttype=application/pdf',
+      null,
+      { headers: { 'x-api-key': process.env.PDFCO_API_KEY } }
+    );
+
+    const { presignedUrl, url } = uploadResponse.data;
+
+    // Subir el archivo a la URL proporcionada por PDF.co
+    await axios.put(presignedUrl, fs.readFileSync(pdfPath), {
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+
+    // Llamar al endpoint para firma
+    const signatureResponse = await axios.post(
       'https://api.pdf.co/v1/pdf/sign/add',
-      {
-        url: '',
-        async: false,
-        name: documentTitle,
-        profiles: '{}',
-        annotations: [
-          {
-            x: 400,
-            y: 100,
-            text: 'Firma aquí',
-            type: 'signature',
-            pages: '1',
-            recipientName: 'Cliente',
-            recipientEmail: recipientEmail,
-            role: 'signer'
-          }
-        ]
-      },
+      JSON.stringify({
+        url,
+        name: documentTitle || 'Documento',
+        recipient: recipientEmail,
+        async: false
+      }),
       {
         headers: {
-          'x-api-key': process.env.PDFCO_API_KEY,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.PDFCO_API_KEY
         }
       }
     );
 
-    res.status(200).json({ message: 'Documento enviado a firma.', response: pdfcoResponse.data });
+    fs.unlinkSync(pdfPath);
+    res.status(200).json({ status: 'success', result: signatureResponse.data });
+
   } catch (error) {
-    console.error('Error al enviar a firma:', error?.response?.data || error.message);
-    res.status(500).json({ error: error?.response?.data || error.message });
+    console.error('Error al enviar a PDF.co:', error.response?.data || error.message);
+    res.status(500).json({
+      status: 'error',
+      errorCode: error.response?.status || 500,
+      message: error.response?.data?.message || error.message,
+    });
   }
 });
 
