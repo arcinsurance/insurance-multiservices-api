@@ -1,62 +1,99 @@
-const express = require("express");
-const multer = require("multer");
-const cors = require("cors");
-const axios = require("axios");
-const FormData = require("form-data");
+const express = require('express');
+const nodemailer = require('nodemailer');
+const cors = require('cors');
+const multer = require('multer');
+const axios = require('axios');
+require('dotenv').config();
 
-const upload = multer();
 const app = express();
+const upload = multer();
 const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) => {
+// Enviar mensajes normales por Gmail
+app.post('/api/send-communication-email', upload.any(), async (req, res) => {
   try {
-    const { recipientEmail, documentTitle } = req.body;
-    const pdfBuffer = req.file?.buffer;
+    const recipientEmail = req.body.recipientEmail;
+    const subject = req.body.subject || 'Mensaje de la agencia';
+    const message = req.body.message || '';
+    const senderEmail = req.body.senderEmail || process.env.GMAIL_USER;
 
-    console.log("📨 Iniciando envío a firma...");
-    console.log("👉 Correo destinatario:", recipientEmail);
-    console.log("📄 Título del documento:", documentTitle);
-
-    if (!recipientEmail || !pdfBuffer || !documentTitle) {
-      console.error("❌ Datos faltantes (email, pdf o título)");
-      return res.status(400).json({ error: "Faltan datos necesarios: PDF, email o título." });
+    if (!recipientEmail) {
+      return res.status(400).json({ error: 'Falta recipientEmail' });
     }
 
-    const formData = new FormData();
-    formData.append("file", pdfBuffer, {
-      filename: "documento.pdf",
-      contentType: "application/pdf"
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
+      },
     });
-    formData.append("title", documentTitle);
-    formData.append("subject", "Firma electrónica requerida");
-    formData.append("message", "Por favor firme este documento.");
-    formData.append("signers[0][email_address]", recipientEmail);
-    formData.append("signers[0][name]", "Cliente");
 
-    const response = await axios.post(
-      "https://api.hellosign.com/v3/signature_request/send",
-      formData,
+    const mailOptions = {
+      from: senderEmail,
+      to: recipientEmail,
+      subject,
+      text: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: 'Correo enviado correctamente.' });
+  } catch (error) {
+    console.error('Error al enviar correo:', error);
+    res.status(500).json({ error: error.message || 'Error al enviar correo' });
+  }
+});
+
+// Enviar documentos a firma vía PDF.co
+app.post('/api/send-signature-request', upload.any(), async (req, res) => {
+  try {
+    const recipientEmail = req.body.recipientEmail;
+    const documentTitle = req.body.documentTitle || 'Documento';
+    const file = req.files?.find(f => f.fieldname === 'pdf');
+
+    if (!recipientEmail || !file) {
+      return res.status(400).json({ error: 'Faltan datos requeridos.' });
+    }
+
+    const pdfcoResponse = await axios.post(
+      'https://api.pdf.co/v1/pdf/sign/add',
+      {
+        url: '',
+        async: false,
+        name: documentTitle,
+        profiles: '{}',
+        annotations: [
+          {
+            x: 400,
+            y: 100,
+            text: 'Firma aquí',
+            type: 'signature',
+            pages: '1',
+            recipientName: 'Cliente',
+            recipientEmail: recipientEmail,
+            role: 'signer'
+          }
+        ]
+      },
       {
         headers: {
-          ...formData.getHeaders(),
-          Authorization: "Basic " + Buffer.from(process.env.DROPBOXSIGN_API_KEY + ":").toString("base64")
+          'x-api-key': process.env.PDFCO_API_KEY,
+          'Content-Type': 'application/json'
         }
       }
     );
 
-    console.log("✅ Firma enviada exitosamente:", response.data);
-    res.status(200).json({ success: true, data: response.data });
-
+    res.status(200).json({ message: 'Documento enviado a firma.', response: pdfcoResponse.data });
   } catch (error) {
-    console.error("🚨 Error al enviar a HelloSign:", error.response?.data || error.message);
-    res.status(500).json({ error: error.response?.data || error.message });
+    console.error('Error al enviar a firma:', error?.response?.data || error.message);
+    res.status(500).json({ error: error?.response?.data || error.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log("🚀 Backend escuchando en el puerto", PORT);
+  console.log(`🚀 Backend escuchando en el puerto ${PORT}`);
 });
