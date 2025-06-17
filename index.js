@@ -1,8 +1,9 @@
 
 const express = require("express");
-const nodemailer = require("nodemailer");
 const multer = require("multer");
 const cors = require("cors");
+const axios = require("axios");
+const FormData = require("form-data");
 
 const upload = multer();
 const app = express();
@@ -12,49 +13,50 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.post("/api/send-communication-email", upload.array("attachments"), async (req, res) => {
+app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) => {
   try {
-    const recipientEmail = req.body.recipientEmail;
-    const senderEmail = req.body.senderEmail;
-    const subject = req.body.subject;
-    const body = req.body.body;
+    const { recipientEmail, documentTitle } = req.body;
+    const pdfBuffer = req.file?.buffer;
 
-    console.log("recipientEmail recibido:", recipientEmail);
-    console.log("senderEmail recibido:", senderEmail);
+    console.log("📨 Intentando enviar a firma...");
+    console.log("Destinatario:", recipientEmail);
+    console.log("Título:", documentTitle);
 
-    if (!recipientEmail || !subject || !body || !senderEmail) {
-      return res.status(400).json({ error: "Faltan campos obligatorios en el formulario." });
+    if (!recipientEmail || !pdfBuffer || !documentTitle) {
+      console.error("❌ Datos faltantes");
+      return res.status(400).json({ error: "PDF, correo del destinatario o título faltante" });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-      }
+    const formData = new FormData();
+    formData.append("file", pdfBuffer, {
+      filename: "documento.pdf",
+      contentType: "application/pdf"
     });
+    formData.append("title", documentTitle);
+    formData.append("subject", "Firma electrónica requerida");
+    formData.append("message", "Por favor firme este documento lo antes posible.");
+    formData.append("signers[0][email_address]", recipientEmail);
+    formData.append("signers[0][name]", "Cliente");
 
-    const mailOptions = {
-      from: senderEmail,
-      to: recipientEmail,
-      subject,
-      text: body,
-      attachments: (req.files || []).map(file => ({
-        filename: file.originalname,
-        content: file.buffer
-      }))
-    };
+    const response = await axios.post(
+      "https://api.hellosign.com/v3/signature_request/send",
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          Authorization: `Basic ${Buffer.from(`${process.env.DROPBOXSIGN_API_KEY}:`).toString("base64")}`
+        }
+      }
+    );
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Correo enviado:", info.response);
-    res.status(200).json({ message: "Correo enviado correctamente", response: info.response });
-
+    console.log("✅ Documento enviado a firma:", response.data);
+    res.status(200).json({ success: true, data: response.data });
   } catch (error) {
-    console.error("Error al enviar correo:", error);
-    res.status(500).json({ error: "Error al enviar correo", details: error.message });
+    console.error("🚨 Error al enviar a HelloSign:", error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data || error.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log("Servidor corriendo en el puerto", PORT);
+  console.log("Servidor backend escuchando en el puerto", PORT);
 });
