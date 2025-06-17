@@ -1,83 +1,63 @@
 
-const express = require('express');
-const nodemailer = require('nodemailer');
-const multer = require('multer');
-const cors = require('cors');
 require('dotenv').config();
-const fs = require('fs');
+const express = require('express');
+const multer = require('multer');
 const axios = require('axios');
+const cors = require('cors');
+const fs = require('fs');
 
 const app = express();
-const upload = multer();
+const port = process.env.PORT || 10000;
+const upload = multer({ dest: 'uploads/' });
+
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-const PORT = process.env.PORT || 10000;
-
-app.post('/api/send-communication-email', upload.none(), async (req, res) => {
-    const { recipientEmail, subject, message, senderEmail } = req.body;
-
-    if (!recipientEmail || !subject || !message || !senderEmail) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_PASS
-        }
-    });
-
-    try {
-        const info = await transporter.sendMail({
-            from: senderEmail,
-            to: recipientEmail,
-            subject,
-            html: message
-        });
-        console.log("Correo enviado:", info.response);
-        res.json({ message: 'Email sent successfully' });
-    } catch (error) {
-        console.error("Error al enviar correo:", error);
-        res.status(500).json({ error: 'Failed to send email' });
-    }
-});
 
 app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+  try {
     const { recipientEmail, documentTitle } = req.body;
-    const pdfBuffer = req.file?.buffer;
+    const filePath = req.file.path;
 
-    if (!recipientEmail || !documentTitle || !pdfBuffer) {
-        return res.status(400).json({ error: 'Missing required fields or PDF' });
+    console.log("📨 Iniciando envío a firma PDF.co...");
+    console.log("👉 Correo destinatario:", recipientEmail);
+    console.log("📄 Título del documento:", documentTitle);
+
+    const fileStream = fs.createReadStream(filePath);
+
+    // Paso 1: Subir el archivo a PDF.co
+    const uploadRes = await axios.post('https://api.pdf.co/v1/file/upload', fileStream, {
+      headers: {
+        'x-api-key': process.env.PDFCO_API_KEY,
+        'Content-Type': 'application/octet-stream'
+      }
+    });
+
+    const fileUrl = uploadRes.data.url;
+
+    // Paso 2: Crear solicitud de firma
+    const signRes = await axios.post('https://api.pdf.co/v1/pdf/sign/add', {
+      url: fileUrl,
+      name: documentTitle || 'Documento',
+      async: false,
+      profiles: JSON.stringify({ "signatures": [{ "pages": "1", "text": "Firma aquí", "x": 400, "y": 700, "width": 200, "height": 50 }] }),
+      recipientName: recipientEmail.split('@')[0],
+      recipientEmail: recipientEmail
+    }, {
+      headers: { 'x-api-key': process.env.PDFCO_API_KEY }
+    });
+
+    if (signRes.data.error) {
+      console.error("🚨 Error al enviar a PDF.co:", signRes.data);
+      return res.status(500).json(signRes.data);
     }
 
-    try {
-        const response = await axios.post(
-            'https://api.pdf.co/v1/pdf/edit/add',
-            {
-                url: 'https://bytescout-com.s3.amazonaws.com/files/demo-files/cloud-api/pdf-to-text/sample.pdf',
-                async: false,
-                name: documentTitle,
-                profiles: JSON.stringify({})
-            },
-            {
-                headers: {
-                    'x-api-key': process.env.PDFCO_API_KEY,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-
-        console.log("PDF.co Response:", response.data);
-        res.json({ message: 'Document sent for signature (PDF.co)', pdfco: response.data });
-    } catch (error) {
-        console.error("Error al enviar a PDF.co:", error.response?.data || error.message);
-        res.status(500).json({ error: 'Failed to send document via PDF.co', details: error.response?.data });
-    }
+    console.log("✅ Solicitud de firma enviada correctamente:", signRes.data);
+    res.json(signRes.data);
+  } catch (error) {
+    console.error("🚨 Error inesperado en backend:", error);
+    res.status(500).json({ error: 'Error al procesar solicitud de firma.' });
+  }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Backend escuchando en el puerto ${PORT}`);
+app.listen(port, () => {
+  console.log(`🚀 Backend escuchando en el puerto ${port}`);
 });
