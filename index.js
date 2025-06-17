@@ -1,9 +1,11 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
+require('dotenv').config();
+
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 const PORT = process.env.PORT || 10000;
@@ -11,41 +13,40 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('Servidor backend para PDF.co funcionando 🚀');
-});
-
+// Ruta para enviar documentos a la firma usando PDF.co
 app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+  const file = req.file;
+  const recipientEmail = req.body.recipientEmail;
+  const documentTitle = req.body.documentTitle;
+
+  if (!file || !recipientEmail || !documentTitle) {
+    return res.status(400).json({ error: 'Faltan datos requeridos.' });
+  }
+
   try {
-    const { recipientEmail, documentTitle } = req.body;
-    const pdfPath = req.file.path;
+    // Leer el archivo PDF y convertirlo en base64
+    const pdfBuffer = fs.readFileSync(file.path);
+    const base64Content = pdfBuffer.toString('base64');
 
-    // Subir el PDF a PDF.co para generar una URL pública temporal
-    const formData = new FormData();
-    formData.append('file', fs.createReadStream(pdfPath));
-
-    const uploadResponse = await axios.post(
-      'https://api.pdf.co/v1/file/upload/get-presigned-url?name=documento.pdf&contenttype=application/pdf',
-      null,
-      { headers: { 'x-api-key': process.env.PDFCO_API_KEY } }
-    );
-
-    const { presignedUrl, url } = uploadResponse.data;
-
-    // Subir el archivo a la URL proporcionada por PDF.co
-    await axios.put(presignedUrl, fs.readFileSync(pdfPath), {
-      headers: { 'Content-Type': 'application/pdf' },
-    });
-
-    // Llamar al endpoint para firma
-    const signatureResponse = await axios.post(
+    // Preparar datos para PDF.co
+    const pdfCoResponse = await axios.post(
       'https://api.pdf.co/v1/pdf/sign/add',
-      JSON.stringify({
-        url,
-        name: documentTitle || 'Documento',
-        recipient: recipientEmail,
-        async: false
-      }),
+      {
+        name: documentTitle,
+        url: `data:application/pdf;base64,${base64Content}`,
+        async: false,
+        profiles: JSON.stringify({
+          signatures: [
+            {
+              position: 'middle-center',
+              pages: '1',
+              name: recipientEmail,
+              signerName: recipientEmail,
+              signerEmail: recipientEmail
+            }
+          ]
+        })
+      },
       {
         headers: {
           'Content-Type': 'application/json',
@@ -54,15 +55,27 @@ app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) =
       }
     );
 
-    fs.unlinkSync(pdfPath);
-    res.status(200).json({ status: 'success', result: signatureResponse.data });
+    fs.unlinkSync(file.path); // Eliminar archivo temporal
+
+    if (pdfCoResponse.data.error) {
+      return res.status(500).json({
+        error: true,
+        message: 'Error en PDF.co',
+        details: pdfCoResponse.data
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      pdfco: pdfCoResponse.data
+    });
 
   } catch (error) {
-    console.error('Error al enviar a PDF.co:', error.response?.data || error.message);
+    console.error('Error al enviar a PDF.co:', error.message);
     res.status(500).json({
-      status: 'error',
-      errorCode: error.response?.status || 500,
-      message: error.response?.data?.message || error.message,
+      error: true,
+      message: 'Error al enviar documento a PDF.co',
+      details: error.response?.data || error.message
     });
   }
 });
