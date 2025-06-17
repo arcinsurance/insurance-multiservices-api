@@ -1,4 +1,3 @@
-
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
@@ -18,13 +17,13 @@ app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) =
     const { recipientEmail, documentTitle } = req.body;
     const pdfBuffer = req.file?.buffer;
 
-    console.log("📨 Intentando enviar a firma...");
-    console.log("Destinatario:", recipientEmail);
-    console.log("Título:", documentTitle);
+    console.log("📨 Iniciando envío a firma...");
+    console.log("👉 Correo destinatario:", recipientEmail);
+    console.log("📄 Título del documento:", documentTitle);
 
     if (!recipientEmail || !pdfBuffer || !documentTitle) {
-      console.error("❌ Datos faltantes");
-      return res.status(400).json({ error: "PDF, correo del destinatario o título faltante" });
+      console.error("❌ Datos faltantes (email, pdf o título)");
+      return res.status(400).json({ error: "Faltan datos necesarios: PDF, email o título." });
     }
 
     const formData = new FormData();
@@ -34,7 +33,7 @@ app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) =
     });
     formData.append("title", documentTitle);
     formData.append("subject", "Firma electrónica requerida");
-    formData.append("message", "Por favor firme este documento lo antes posible.");
+    formData.append("message", "Por favor firme este documento.");
     formData.append("signers[0][email_address]", recipientEmail);
     formData.append("signers[0][name]", "Cliente");
 
@@ -44,13 +43,14 @@ app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) =
       {
         headers: {
           ...formData.getHeaders(),
-          Authorization: `Basic ${Buffer.from(`${process.env.DROPBOXSIGN_API_KEY}:`).toString("base64")}`
+          Authorization: "Basic " + Buffer.from(process.env.DROPBOXSIGN_API_KEY + ":").toString("base64")
         }
       }
     );
 
-    console.log("✅ Documento enviado a firma:", response.data);
+    console.log("✅ Firma enviada exitosamente:", response.data);
     res.status(200).json({ success: true, data: response.data });
+
   } catch (error) {
     console.error("🚨 Error al enviar a HelloSign:", error.response?.data || error.message);
     res.status(500).json({ error: error.response?.data || error.message });
@@ -58,5 +58,5 @@ app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) =
 });
 
 app.listen(PORT, () => {
-  console.log("Servidor backend escuchando en el puerto", PORT);
+  console.log("🚀 Backend escuchando en el puerto", PORT);
 });
