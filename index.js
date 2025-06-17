@@ -1,98 +1,62 @@
 
 const express = require('express');
-const multer = require('multer');
 const cors = require('cors');
+const multer = require('multer');
+const bodyParser = require('body-parser');
 const axios = require('axios');
-const nodemailer = require('nodemailer');
-const dotenv = require('dotenv');
-const fs = require('fs');
-const FormData = require('form-data');
-
-dotenv.config();
+require('dotenv').config();
 
 const app = express();
+const upload = multer();
 app.use(cors());
-app.use(express.json());
-
-const upload = multer({ storage: multer.memoryStorage() });
-
-app.post('/api/send-communication-email', upload.array('attachments'), async (req, res) => {
-  const { senderEmail, recipientEmail, subject, message } = req.body;
-  const attachments = req.files.map(file => ({
-    filename: file.originalname,
-    content: file.buffer,
-  }));
-
-  try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
-    });
-
-    const info = await transporter.sendMail({
-      from: senderEmail,
-      to: recipientEmail,
-      subject,
-      html: message,
-      attachments,
-    });
-
-    console.log('Correo enviado:', info.response);
-    res.status(200).json({ message: 'Correo enviado correctamente' });
-  } catch (error) {
-    console.error('Error al enviar correo:', error);
-    res.status(500).json({ error: 'Error al enviar correo' });
-  }
-});
-
-app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
-  const { recipientEmail, documentTitle } = req.body;
-  const fileBuffer = req.file?.buffer;
-
-  if (!fileBuffer) {
-    return res.status(400).json({ error: 'Archivo PDF no proporcionado' });
-  }
-
-  try {
-    const base64Pdf = fileBuffer.toString('base64');
-
-    const payload = {
-      name: documentTitle,
-      file: base64Pdf,
-      async: false,
-      annotations: [
-        {
-          x: 400,
-          y: 100,
-          text: "Firma aquí",
-          type: "signature",
-          pages: "1",
-          recipientName: "Cliente",
-          recipientEmail: recipientEmail,
-          role: "signer"
-        }
-      ]
-    };
-
-    const response = await axios.post('https://api.pdf.co/v1/pdf/edit/add', payload, {
-      headers: {
-        'x-api-key': process.env.PDFCO_API_KEY,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    console.log('Respuesta PDF.co:', response.data);
-    res.status(200).json(response.data);
-  } catch (error) {
-    console.error('Error al enviar a PDF.co:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Error al enviar a PDF.co', detail: error.response?.data || error.message });
-  }
-});
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 10000;
+
+app.post('/api/send-signature-request', upload.none(), async (req, res) => {
+  try {
+    const { html, recipientEmail, documentTitle } = req.body;
+
+    if (!html || !recipientEmail || !documentTitle) {
+      return res.status(400).json({ error: true, message: 'Parámetros incompletos.' });
+    }
+
+    const annotations = [
+      {
+        x: 400,
+        y: 100,
+        text: 'Firma aquí',
+        type: 'signature',
+        pages: '1',
+        recipientName: 'Cliente',
+        recipientEmail,
+        role: 'signer'
+      }
+    ];
+
+    const pdfcoResponse = await axios.post(
+      'https://api.pdf.co/v1/pdf/sign/add',
+      {
+        html,
+        name: documentTitle,
+        annotations
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.PDFCO_API_KEY
+        }
+      }
+    );
+
+    return res.json({ success: true, result: pdfcoResponse.data });
+  } catch (error) {
+    console.error('Error al enviar a PDF.co:', error.message);
+    return res.status(500).json({ error: true, message: `Error al enviar a PDF.co: ${error.message}` });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`🚀 Backend escuchando en el puerto ${PORT}`);
+  console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
 });
