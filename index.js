@@ -1,97 +1,98 @@
-
 require('dotenv').config();
 const express = require('express');
-const nodemailer = require('nodemailer');
 const multer = require('multer');
-const axios = require('axios');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
-const upload = multer();
-const PORT = process.env.PORT || 10000;
+const upload = multer({ dest: 'uploads/' });
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
+const PORT = process.env.PORT || 10000;
+
+// Endpoint to send an email
 app.post('/api/send-communication-email', upload.none(), async (req, res) => {
-  const { recipientEmail, subject, message, senderEmail } = req.body;
-
-  if (!recipientEmail) {
-    return res.status(400).json({ error: 'Recipient email is required.' });
-  }
-
   try {
+    const { senderEmail, recipientEmail, subject, message } = req.body;
+
+    if (!recipientEmail) {
+      return res.status(400).json({ error: 'Recipient email is required' });
+    }
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
+        pass: process.env.GMAIL_PASS
+      }
     });
 
     const mailOptions = {
       from: senderEmail || process.env.GMAIL_USER,
       to: recipientEmail,
-      subject,
-      html: message,
+      subject: subject || 'Mensaje desde Insurance Multiservices',
+      text: message || 'Este es un mensaje de prueba.'
     };
 
     const info = await transporter.sendMail(mailOptions);
     console.log('Correo enviado:', info.response);
-    res.status(200).json({ success: true, message: 'Correo enviado.' });
+    res.json({ success: true, message: 'Correo enviado correctamente' });
   } catch (error) {
     console.error('Error al enviar correo:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+// Endpoint to send a document for signature using PDF.co
 app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
-  const { recipientEmail, documentTitle } = req.body;
-  const pdfBuffer = req.file?.buffer;
-
-  if (!pdfBuffer || !recipientEmail) {
-    return res.status(400).json({ error: 'Falta archivo PDF o destinatario.' });
-  }
-
   try {
-    const pdfBase64 = pdfBuffer.toString('base64');
+    const { recipientEmail, documentTitle } = req.body;
+    const filePath = req.file.path;
+    const fileData = fs.readFileSync(filePath).toString('base64');
 
-    const response = await axios.post(
-      'https://api.pdf.co/v1/pdf/sign',
-      {
-        url: '',
+    const options = {
+      method: 'POST',
+      url: 'https://api.pdf.co/v1/pdf/edit/add',
+      headers: {
+        'x-api-key': process.env.PDFCO_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      data: JSON.stringify({
+        name: documentTitle || 'Documento para firma',
         async: false,
-        name: documentTitle || 'documento.pdf',
-        profiles: '{}',
-        file: pdfBase64,
+        url: 'data:application/pdf;base64,' + fileData,
+        profiles: 'pdf-signature-request',
         annotations: [
           {
-            text: "Por favor firme aquí",
-            x: 50,
-            y: 50,
-            pages: "1",
-            type: "signature",
-            width: 200,
-            height: 50
+            "x": 50,
+            "y": 50,
+            "text": "Firma aquí",
+            "pages": "1",
+            "type": "signature",
+            "recipientName": recipientEmail,
+            "recipientEmail": recipientEmail
           }
-        ],
-        recipient: {
-          email: recipientEmail
-        }
-      },
-      {
-        headers: {
-          'x-api-key': process.env.PDFCO_API_KEY,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+        ]
+      })
+    };
 
-    console.log('Respuesta de PDF.co:', response.data);
-    res.status(200).json({ success: true, data: response.data });
+    const response = await axios.request(options);
+    fs.unlinkSync(filePath); // Clean up the uploaded file
+
+    if (response.data.error) {
+      console.error('Error al enviar a PDF.co:', response.data);
+      return res.status(500).json({ error: response.data.message });
+    }
+
+    res.json({ success: true, result: response.data });
   } catch (error) {
-    console.error('Error al enviar a PDF.co:', error.response?.data || error.message);
-    res.status(500).json({ error: error.response?.data || error.message });
+    console.error('Error general al enviar a PDF.co:', error.response?.data || error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
