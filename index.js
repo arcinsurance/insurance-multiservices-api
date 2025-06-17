@@ -1,63 +1,68 @@
 
-const express = require('express');
-const multer = require('multer');
-const cors = require('cors');
-const fs = require('fs');
-const axios = require('axios');
-const dotenv = require('dotenv');
-const path = require('path');
-
-dotenv.config();
+const express = require("express");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
+const axios = require("axios");
+const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
+const port = process.env.PORT || 10000;
+
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 10000;
+const upload = multer({ dest: "uploads/" });
 
-// Ruta para enviar documento a firma usando PDF.co
-app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) => {
     try {
-        const { recipientEmail, documentTitle } = req.body;
-        const pdfBuffer = req.file.buffer;
+        const pdfPath = req.file.path;
+        const recipientEmail = req.body.recipientEmail;
+        const documentTitle = req.body.documentTitle || "Documento";
 
-        // Codificar PDF en Base64
-        const base64Pdf = pdfBuffer.toString('base64');
+        const fileData = fs.readFileSync(pdfPath);
+        const base64PDF = fileData.toString("base64");
 
-        // Configurar la solicitud a PDF.co
+        const payload = {
+            name: documentTitle,
+            url: `data:application/pdf;base64,${base64PDF}`,
+            annotations: [
+                {
+                    x: 100,
+                    y: 100,
+                    pages: "1",
+                    type: "signature",
+                    width: 200,
+                    height: 50
+                }
+            ],
+            async: false
+        };
+
         const response = await axios.post(
-            'https://api.pdf.co/v1/pdf/sign/add',
-            {
-                name: documentTitle || "documento.pdf",
-                async: false,
-                file: base64Pdf,
-                annotations: [
-                    {
-                        text: 'Firma aquí',
-                        x: 100,
-                        y: 150,
-                        pages: '1',
-                        type: 'signature'
-                    }
-                ]
-            },
+            "https://api.pdf.co/v1/pdf/sign/add",
+            payload,
             {
                 headers: {
-                    'x-api-key': process.env.PDFCO_API_KEY,
-                    'Content-Type': 'application/json'
+                    "x-api-key": process.env.PDFCO_API_KEY,
+                    "Content-Type": "application/json"
                 }
             }
         );
 
-        console.log("✅ Documento enviado a PDF.co:", response.data);
-        res.json({ success: true, response: response.data });
+        // Eliminar archivo temporal
+        fs.unlinkSync(pdfPath);
+
+        console.log("Respuesta PDF.co:", response.data);
+        res.json(response.data);
+
     } catch (error) {
         console.error("❌ Error al enviar a PDF.co:", error.response?.data || error.message);
         res.status(500).json({ error: true, message: error.response?.data || error.message });
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Backend escuchando en el puerto ${PORT}`);
+app.listen(port, () => {
+    console.log(`🚀 Backend escuchando en el puerto ${port}`);
 });
