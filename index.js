@@ -1,88 +1,84 @@
+
+require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
-const cors = require('cors');
 const nodemailer = require('nodemailer');
-const FormData = require('form-data');
 const axios = require('axios');
-require('dotenv').config();
-
+const cors = require('cors');
 const app = express();
 const upload = multer();
-const port = process.env.PORT || 10000;
-
 app.use(cors());
 app.use(express.json());
 
-app.post('/api/send-communication-email', upload.array('attachments'), async (req, res) => {
-    const { senderEmail, recipientEmail, subject, message } = req.body;
-    const attachments = req.files.map(file => ({
-        filename: file.originalname,
-        content: file.buffer
-    }));
+app.post('/api/send-communication-email', upload.any(), async (req, res) => {
+  const formData = req.body;
+  const files = req.files;
+  const recipientEmail = formData.recipientEmail;
+  const subject = formData.subject || 'Mensaje desde Insurance Multiservices';
+  const message = formData.message || '';
 
-    if (!recipientEmail || !subject || !message) {
-        return res.status(400).json({ error: 'Faltan datos requeridos' });
+  if (!recipientEmail) return res.status(400).json({ error: 'Falta recipientEmail' });
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS,
     }
+  });
 
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_PASS
-        }
+  const attachments = files.map(file => ({
+    filename: file.originalname,
+    content: file.buffer
+  }));
+
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: recipientEmail,
+      subject,
+      html: message,
+      attachments
     });
-
-    const mailOptions = {
-        from: senderEmail || process.env.GMAIL_USER,
-        to: recipientEmail,
-        subject,
-        html: message,
-        attachments
-    };
-
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Correo enviado:', info.response);
-        res.status(200).json({ success: true, message: 'Correo enviado correctamente' });
-    } catch (error) {
-        console.error('Error al enviar correo:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    res.json({ success: true, messageId: info.messageId });
+  } catch (err) {
+    res.status(500).json({ error: 'Error enviando email', details: err.toString() });
+  }
 });
 
 app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
-    const { recipientEmail, documentTitle } = req.body;
-    const pdfBuffer = req.file?.buffer;
+  const file = req.file;
+  const { recipientEmail, documentTitle } = req.body;
+  if (!file || !recipientEmail || !documentTitle) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
 
-    if (!recipientEmail || !documentTitle || !pdfBuffer) {
-        return res.status(400).json({ error: 'Faltan datos requeridos para la firma' });
-    }
-
-    const formData = new FormData();
-    formData.append('file', pdfBuffer, { filename: `${documentTitle}.pdf` });
-    formData.append('name', documentTitle);
-    formData.append('recipient', recipientEmail);
-    formData.append('async', 'false');
-
-    try {
-        const response = await axios.post(
-            'https://api.pdf.co/v1/pdf/edit/add',
-            formData,
-            {
-                headers: {
-                    'x-api-key': process.env.PDFCO_API_KEY,
-                    ...formData.getHeaders()
-                }
-            }
-        );
-        console.log('Respuesta de PDF.co:', response.data);
-        res.status(200).json({ success: true, response: response.data });
-    } catch (error) {
-        console.error('Error al enviar a PDF.co:', error.response?.data || error.message);
-        res.status(500).json({ success: false, error: error.response?.data || error.message });
-    }
+  try {
+    const pdfcoRes = await axios.post('https://api.pdf.co/v1/pdf/sign/add', {
+      url: 'data:application/pdf;base64,' + file.buffer.toString('base64'),
+      name: documentTitle,
+      async: false,
+      annotations: [
+        {
+          text: "Por favor firme aquí",
+          x: 50,
+          y: 50,
+          pages: "1",
+          type: "signature",
+          width: 200,
+          height: 50
+        }
+      ]
+    }, {
+      headers: {
+        'x-api-key': process.env.PDFCO_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    res.json(pdfcoRes.data);
+  } catch (err) {
+    res.status(500).json({ error: 'Error enviando a PDF.co', details: err.response?.data || err.toString() });
+  }
 });
 
-app.listen(port, () => {
-    console.log(`🚀 Backend escuchando en el puerto ${port}`);
-});
+app.listen(10000, () => console.log("🚀 Backend escuchando en el puerto 10000"));
