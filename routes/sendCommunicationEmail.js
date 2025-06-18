@@ -1,14 +1,17 @@
 
-import express from 'express';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
-const router = express.Router();
 
-router.post('/send-communication-email', async (req, res) => {
+export default async function sendCommunicationEmail(req, res) {
   try {
-    const { to, subject, text } = req.body;
+    const { recipientEmail, subject, message } = req.body;
+
+    if (!recipientEmail || !subject || !message) {
+      return res.status(400).json({ success: false, error: "Faltan campos requeridos." });
+    }
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -17,18 +20,18 @@ router.post('/send-communication-email', async (req, res) => {
       }
     });
 
-    const info = await transporter.sendMail({
+    const mailOptions = {
       from: process.env.GMAIL_USER,
-      to,
-      subject,
-      text
-    });
+      to: recipientEmail,
+      subject: subject,
+      text: message
+    };
 
-    res.status(200).json({ success: true, info });
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Email enviado a ${recipientEmail}`);
+    res.status(200).json({ success: true });
   } catch (error) {
-    console.error("❌ Error sending email:", error.message);
-    res.status(500).json({ success: false, error: 'Failed to send email' });
+    console.error("❌ Error al enviar email:", error.message || error);
+    res.status(500).json({ success: false, error: "Fallo al enviar el email." });
   }
-});
-
-export default router;
+}

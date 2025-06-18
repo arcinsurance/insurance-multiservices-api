@@ -1,35 +1,40 @@
 
-import express from 'express';
-import multer from 'multer';
-import csvParser from 'csv-parser';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 
-const router = express.Router();
-const upload = multer();
+export default async function importClients(req, res) {
+  const results = [];
+  const failedRows = [];
 
-router.post('/import-clients', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: 'No se recibió el archivo CSV.' });
+  }
+
   try {
-    const clients = [];
-    const failed = [];
+    const bufferStream = new Readable();
+    bufferStream.push(req.file.buffer);
+    bufferStream.push(null);
 
-    req.pipe(csvParser())
-      .on('data', (row) => {
-        if (row.first_name && row.last_name && row.email) {
-          clients.push(row);
+    bufferStream
+      .pipe(csv())
+      .on('data', (data) => {
+        if (data.email) {
+          results.push(data);
         } else {
-          failed.push({ row, error: "Missing required fields" });
+          failedRows.push({ row: data, reason: 'Falta el campo email' });
         }
       })
       .on('end', () => {
-        res.json({
-          created: clients.length,
-          failed: failed.length,
-          errors: failed.slice(0, 5)
+        console.log(`✅ Clientes procesados: ${results.length}, fallidos: ${failedRows.length}`);
+        res.status(200).json({
+          success: true,
+          created: results.length,
+          failed: failedRows.length,
+          failedDetails: failedRows.slice(0, 5)
         });
       });
-  } catch (error) {
-    console.error('❌ CSV import error:', error.message);
-    res.status(500).json({ error: 'Import failed' });
+  } catch (err) {
+    console.error("❌ Error al importar clientes:", err.message);
+    res.status(500).json({ success: false, error: "Fallo al procesar el archivo CSV." });
   }
-});
-
-export default router;
+}
