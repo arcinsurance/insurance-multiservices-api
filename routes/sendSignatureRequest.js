@@ -1,3 +1,4 @@
+
 import express from 'express';
 import multer from 'multer';
 import axios from 'axios';
@@ -9,29 +10,25 @@ const upload = multer();
 
 router.post('/send-signature-request', upload.single('pdf'), async (req, res) => {
   try {
-    const pdfBuffer = req.file.buffer;
-    const base64File = pdfBuffer.toString('base64');
-    const recipientEmail = req.body.recipientEmail;
-    const documentTitle = req.body.documentTitle;
+    const base64File = req.file.buffer.toString('base64');
+    const { recipientEmail, documentTitle } = req.body;
 
-    const annotations = [
-      {
-        text: "Firme aquí",
-        x: 50,
-        y: 700,
-        pages: "1",
-        type: "signature",
-        width: 150,
-        height: 40
-      }
-    ];
+    const annotations = [{
+      text: "Firme aquí",
+      x: 50,
+      y: 700,
+      pages: "1",
+      type: "signature",
+      width: 150,
+      height: 40
+    }];
 
     const payload = {
       name: documentTitle,
       async: false,
       file: base64File,
-      inline: true, // 📌 Documento se verá en línea
-      annotations: annotations,
+      inline: true,
+      annotations,
       profiles: ["signature"],
       encrypt: false,
       expiresIn: 72
@@ -48,12 +45,9 @@ router.post('/send-signature-request', upload.single('pdf'), async (req, res) =>
       }
     );
 
-    // ✅ Imprimir respuesta completa en consola para debug
-    console.log('Respuesta de PDF.co:', pdfcoResponse.data);
-
     res.status(200).json({ success: true, pdfcoResponse: pdfcoResponse.data });
   } catch (error) {
-    console.error('Error enviando a PDF.co:', error.message || error);
+    console.error('❌ Error PDF.co:', error.message);
     res.status(500).json({ success: false, error: 'Fallo al enviar documento a firma' });
   }
 });
