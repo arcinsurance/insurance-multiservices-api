@@ -1,9 +1,7 @@
-
 import express from 'express';
 import multer from 'multer';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import fs from 'fs';
 
 dotenv.config();
 const router = express.Router();
@@ -29,15 +27,15 @@ router.post('/send-signature-request', upload.single('pdf'), async (req, res) =>
     ];
 
     const payload = {
-  name: documentTitle,
-  async: false,
-  file: base64File,
-  inline: true, // 👈 ESTO ES CLAVE
-  annotations: annotations,
-  profiles: ["signature"],
-  encrypt: false,
-  expiresIn: 72
-};
+      name: documentTitle,
+      async: false,
+      file: base64File,
+      inline: true, // 📌 Documento se verá en línea
+      annotations: annotations,
+      profiles: ["signature"],
+      encrypt: false,
+      expiresIn: 72
+    };
 
     const pdfcoResponse = await axios.post(
       'https://api.pdf.co/v1/pdf/sign/add',
@@ -49,6 +47,9 @@ router.post('/send-signature-request', upload.single('pdf'), async (req, res) =>
         }
       }
     );
+
+    // ✅ Imprimir respuesta completa en consola para debug
+    console.log('Respuesta de PDF.co:', pdfcoResponse.data);
 
     res.status(200).json({ success: true, pdfcoResponse: pdfcoResponse.data });
   } catch (error) {
