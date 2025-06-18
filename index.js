@@ -1,31 +1,35 @@
 
-const express = require('express');
-const multer = require('multer');
-const cors = require('cors');
-const nodemailer = require('nodemailer');
-const FormData = require('form-data');
-const axios = require('axios');
-const dotenv = require('dotenv');
-const fs = require('fs');
-const path = require('path');
+import express from "express";
+import multer from "multer";
+import cors from "cors";
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+import axios from "axios";
+import fs from "fs";
 
 dotenv.config();
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 const upload = multer({ storage: multer.memoryStorage() });
+
 app.use(cors());
 app.use(express.json());
 
-app.post('/api/send-communication-email', upload.array('attachments'), async (req, res) => {
+app.post("/api/send-communication-email", upload.array("attachments"), async (req, res) => {
   const { senderEmail, recipientEmail, subject, message } = req.body;
+  const attachments = req.files.map((file) => ({
+    filename: file.originalname,
+    content: file.buffer,
+  }));
 
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
       user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS
-    }
+      pass: process.env.GMAIL_PASS,
+    },
   });
 
   const mailOptions = {
@@ -33,59 +37,52 @@ app.post('/api/send-communication-email', upload.array('attachments'), async (re
     to: recipientEmail,
     subject,
     text: message,
-    attachments: req.files?.map(file => ({
-      filename: file.originalname,
-      content: file.buffer
-    }))
+    attachments,
   };
 
   try {
     await transporter.sendMail(mailOptions);
-    res.status(200).send('Correo enviado correctamente');
+    res.status(200).send("Email sent successfully");
   } catch (error) {
-    console.error('Error al enviar correo:', error);
-    res.status(500).send('Error al enviar correo');
+    res.status(500).send(`Failed to send emails: ${error}`);
   }
 });
 
-app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
+app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) => {
   try {
+    const fileBase64 = req.file.buffer.toString("base64");
     const { recipientEmail, documentTitle } = req.body;
-    const pdfBuffer = req.file.buffer;
 
-    const formData = new FormData();
-    formData.append('file', pdfBuffer, {
-      filename: 'document.pdf',
-      contentType: 'application/pdf'
-    });
-    formData.append('name', documentTitle);
-    formData.append('annotations', JSON.stringify([
-      {
-        x: 400,
-        y: 100,
-        text: 'Firma aquí',
-        type: 'signature',
-        pages: '1',
-        recipientname: 'Cliente',
-        recipientemail: recipientEmail,
-        role: 'signer'
-      }
-    ]));
-
-    const response = await axios.post('https://api.pdf.co/v1/pdf/sign/add', formData, {
+    const response = await axios.post("https://api.pdf.co/v1/pdf/sign/add", {
+      name: documentTitle,
+      async: false,
+      file: fileBase64,
+      annotations: [
+        {
+          x: 400,
+          y: 100,
+          text: "Firma aquí",
+          type: "signature",
+          pages: "1",
+          recipientname: "Cliente",
+          recipientemail: recipientEmail,
+          role: "signer",
+        },
+      ],
+    }, {
       headers: {
-        ...formData.getHeaders(),
-        'x-api-key': process.env.PDFCO_API_KEY
-      }
+        "x-api-key": process.env.PDFCO_API_KEY,
+        "Content-Type": "application/json",
+      },
     });
 
-    res.status(200).json({ message: 'Solicitud de firma enviada correctamente', data: response.data });
+    res.status(200).json(response.data);
   } catch (error) {
-    console.error('Error enviando a PDF.co:', error.message || error);
-    res.status(500).send(`Error enviando a PDF.co: ${error.message || error}`);
+    console.error("Error enviando a PDF.co:", error.message);
+    res.status(500).json({ error: "Error enviando a PDF.co", message: error.message });
   }
 });
 
 app.listen(port, () => {
-  console.log(`Servidor escuchando en el puerto ${port}`);
+  console.log(`Server is running on port ${port}`);
 });
