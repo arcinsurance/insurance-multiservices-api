@@ -3,20 +3,21 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.5.1",
-    "@heroicons/react": "^2.2.0",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.1",
+    "@": "latest",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.2"
+    "react-router-dom": "^7.6.2",
+    "@google/genai": "^1.5.1",
+    "jspdf": "^3.0.1",
+    "@heroicons/react": "^2.2.0",
+    "html2canvas": "^1.4.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
@@ -24,6 +25,7 @@
     "vite": "^6.2.0"
   },
   "description": "This contains everything you need to run your app locally.",
+  "main": "index.js",
   "keywords": [],
   "author": "",
   "license": "ISC"
