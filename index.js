@@ -1,62 +1,28 @@
 
-import express from "express";
-import multer from "multer";
-import cors from "cors";
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
-import axios from "axios";
-import fs from "fs";
+import express from 'express';
+import multer from 'multer';
+import axios from 'axios';
+import dotenv from 'dotenv';
+import cors from 'cors';
 
 dotenv.config();
-
 const app = express();
-const port = process.env.PORT || 3000;
-
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer();
 
 app.use(cors());
 app.use(express.json());
 
-app.post("/api/send-communication-email", upload.array("attachments"), async (req, res) => {
-  const { senderEmail, recipientEmail, subject, message } = req.body;
-  const attachments = req.files.map((file) => ({
-    filename: file.originalname,
-    content: file.buffer,
-  }));
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS,
-    },
-  });
-
-  const mailOptions = {
-    from: senderEmail,
-    to: recipientEmail,
-    subject,
-    text: message,
-    attachments,
-  };
-
+app.post('/api/send-signature-request', upload.single('pdf'), async (req, res) => {
   try {
-    await transporter.sendMail(mailOptions);
-    res.status(200).send("Email sent successfully");
-  } catch (error) {
-    res.status(500).send(`Failed to send emails: ${error}`);
-  }
-});
+    const fileBuffer = req.file.buffer;
+    const pdfBase64 = fileBuffer.toString('base64');
 
-app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) => {
-  try {
-    const fileBase64 = req.file.buffer.toString("base64");
     const { recipientEmail, documentTitle } = req.body;
 
-    const response = await axios.post("https://api.pdf.co/v1/pdf/sign/add", {
+    const payload = {
       name: documentTitle,
       async: false,
-      file: fileBase64,
+      file: pdfBase64,
       annotations: [
         {
           x: 400,
@@ -66,23 +32,35 @@ app.post("/api/send-signature-request", upload.single("pdf"), async (req, res) =
           pages: "1",
           recipientname: "Cliente",
           recipientemail: recipientEmail,
-          role: "signer",
-        },
-      ],
-    }, {
-      headers: {
-        "x-api-key": process.env.PDFCO_API_KEY,
-        "Content-Type": "application/json",
-      },
-    });
+          role: "signer"
+        }
+      ]
+    };
 
-    res.status(200).json(response.data);
+    const response = await axios.post(
+      'https://api.pdf.co/v1/pdf/sign/add',
+      payload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.PDFCO_API_KEY
+        }
+      }
+    );
+
+    const { url } = response.data;
+    res.status(200).json({ success: true, url });
+
   } catch (error) {
-    console.error("Error enviando a PDF.co:", error.message);
-    res.status(500).json({ error: "Error enviando a PDF.co", message: error.message });
+    console.error('Error enviando a PDF.co:', error.response?.data || error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Fallo al enviar documento a firma',
+      error: error.response?.data || error.message
+    });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+    
