@@ -1,4 +1,3 @@
-
 import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
@@ -14,15 +13,14 @@ router.post('/import-clients', upload.single('csvFile'), (req, res) => {
   fs.createReadStream(filePath)
     .pipe(csvParser())
     .on('data', (data) => {
-      results.push(data); // Aquí puedes transformar los datos si lo necesitas
+      results.push(data);
     })
     .on('end', () => {
-      // Aquí deberías validar, filtrar duplicados, e insertar/actualizar en la base de datos
-      fs.unlinkSync(filePath); // Borra el archivo temporal
+      fs.unlinkSync(filePath);
       res.json({
         message: 'Importación completada',
         total: results.length,
-        sample: results.slice(0, 3),
+        sample: results.slice(0, 3)
       });
     })
     .on('error', (err) => {
