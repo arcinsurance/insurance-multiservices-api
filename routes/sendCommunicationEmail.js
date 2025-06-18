@@ -1,36 +1,35 @@
+import express from 'express';
+import nodemailer from 'nodemailer';
+import multer from 'multer';
 
-const express = require('express');
 const router = express.Router();
-const nodemailer = require('nodemailer');
+const upload = multer();
 
-router.post('/', async (req, res) => {
+router.post('/send-communication-email', upload.any(), async (req, res) => {
+  const { subject, message, senderEmail, recipientEmail } = req.body;
+
   try {
-    const { subject, message, recipientEmail, senderEmail } = req.body;
-
-    if (!subject || !message || !recipientEmail || !senderEmail) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-      }
+        pass: process.env.GMAIL_PASS,
+      },
     });
 
-    await transporter.sendMail({
-      from: senderEmail,
+    const mailOptions = {
+      from: senderEmail || process.env.GMAIL_USER,
       to: recipientEmail,
       subject,
-      text: message
-    });
+      text: message,
+    };
 
-    res.status(200).json({ message: 'Email sent successfully' });
+    await transporter.sendMail(mailOptions);
+    res.status(200).send('Email sent successfully');
   } catch (error) {
-    console.error('Error sending email:', error.message);
-    res.status(500).json({ error: 'Failed to send email' });
+    console.error('Email send error:', error);
+    res.status(500).send('Failed to send email');
   }
 });
 
-module.exports = router;
+export default router;
