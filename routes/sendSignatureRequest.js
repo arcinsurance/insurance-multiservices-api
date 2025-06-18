@@ -29,15 +29,15 @@ router.post('/send-signature-request', upload.single('pdf'), async (req, res) =>
     ];
 
     const payload = {
-      name: documentTitle,
-      async: false,
-      file: base64File,
-      annotations: annotations,
-      profiles: ["signature"],
-      encrypt: false,
-      url: "",
-      expiresIn: 72
-    };
+  name: documentTitle,
+  async: false,
+  file: base64File,
+  inline: true, // 👈 ESTO ES CLAVE
+  annotations: annotations,
+  profiles: ["signature"],
+  encrypt: false,
+  expiresIn: 72
+};
 
     const pdfcoResponse = await axios.post(
       'https://api.pdf.co/v1/pdf/sign/add',
