@@ -1,37 +1,32 @@
+// routes/sendcommunicationemail.js
+const express = require('express');
+const router = express.Router();
+const nodemailer = require('nodemailer');
 
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
+router.post('/send-communication-email', async (req, res) => {
+  const { to, subject, text } = req.body;
 
-dotenv.config();
-
-export default async function sendCommunicationEmail(req, res) {
   try {
-    const { recipientEmail, subject, message } = req.body;
-
-    if (!recipientEmail || !subject || !message) {
-      return res.status(400).json({ success: false, error: "Faltan campos requeridos." });
-    }
-
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS
-      }
+        user: process.env.EMAIL_SENDER,
+        pass: process.env.EMAIL_PASSWORD, // App Password
+      },
     });
 
-    const mailOptions = {
-      from: process.env.GMAIL_USER,
-      to: recipientEmail,
-      subject: subject,
-      text: message
-    };
+    await transporter.sendMail({
+      from: `"Insurance Multiservices" <${process.env.EMAIL_SENDER}>`,
+      to,
+      subject,
+      text,
+    });
 
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email enviado a ${recipientEmail}`);
-    res.status(200).json({ success: true });
+    res.status(200).json({ message: 'Correo enviado correctamente' });
   } catch (error) {
-    console.error("❌ Error al enviar email:", error.message || error);
-    res.status(500).json({ success: false, error: "Fallo al enviar el email." });
+    console.error('Error al enviar el correo:', error);
+    res.status(500).json({ message: 'Error al enviar el correo' });
   }
-}
+});
+
+module.exports = router;
