@@ -1,4 +1,3 @@
-// routes/sendcommunicationemail.js
 const express = require('express');
 const router = express.Router();
 const nodemailer = require('nodemailer');
@@ -10,13 +9,13 @@ router.post('/send-communication-email', async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_SENDER,
-        pass: process.env.EMAIL_PASSWORD, // App Password
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
       },
     });
 
     await transporter.sendMail({
-      from: `"Insurance Multiservices" <${process.env.EMAIL_SENDER}>`,
+      from: `"Insurance Multiservices" <${process.env.GMAIL_USER}>`,
       to,
       subject,
       text,
