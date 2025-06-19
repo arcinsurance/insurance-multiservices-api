@@ -1,19 +1,30 @@
 const express = require('express');
-const router = express.Router();
 const axios = require('axios');
+const router = express.Router();
 
-router.post('/send-signature-request', async (req, res) => {
-  const { name, email, documentUrl } = req.body;
-
+router.post('/', async (req, res) => {
   try {
+    const { fileUrl, signerEmail, signerName } = req.body;
+
     const response = await axios.post(
-      'https://api.pdf.co/v1/sign/v2',
+      'https://api.pdf.co/v1/pdf/sign/add',
       {
-        url: documentUrl,
+        url: fileUrl,
+        name: 'Document Signature',
         async: false,
-        name,
-        recipient: email,
-        disableBrowserRedirect: true,
+        profiles: '{"signature": {}}',
+        signatures: [
+          {
+            email: signerEmail,
+            name: signerName,
+            type: 1,
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 50,
+            page: 0,
+          },
+        ],
       },
       {
         headers: {
@@ -23,10 +34,10 @@ router.post('/send-signature-request', async (req, res) => {
       }
     );
 
-    res.status(200).json({ message: 'Solicitud enviada', data: response.data });
+    res.status(200).json({ resultUrl: response.data.url });
   } catch (error) {
-    console.error('Error al enviar solicitud de firma:', error.response?.data || error.message);
-    res.status(500).json({ message: 'Error al enviar solicitud de firma' });
+    console.error('Error al enviar solicitud de firma:', error);
+    res.status(500).json({ error: 'Error en la solicitud de firma' });
   }
 });
 
