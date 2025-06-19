@@ -1,35 +1,30 @@
-const User = require('../models/User');
-const sendEmail = require('../utils/sendEmail');
-const crypto = require('crypto');
 
-exports.sendOtp = async (req, res) => {
-  const { email } = req.body;
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 5 * 60 * 1000;
+const users = require('../data/users'); // Suponiendo que tienes una lista de usuarios
+const { sendEmailWithOtp, generateOtp, otpStore } = require('../utils/otpUtils');
 
-  await User.findOneAndUpdate({ email }, {
-    otpCode: otp,
-    otpExpiresAt: new Date(expiresAt)
-  });
+exports.login = async (req, res) => {
+  const { email, password } = req.body;
 
-  await sendEmail(email, 'Tu código de verificación', `Tu código es: ${otp}`);
-  res.status(200).json({ message: 'Código enviado' });
-};
-
-exports.verifyOtp = async (req, res) => {
-  const { email, otp } = req.body;
-  const user = await User.findOne({ email });
-
-  if (!user || user.otpCode !== otp || Date.now() > user.otpExpiresAt) {
-    return res.status(400).json({ message: 'Código inválido o expirado' });
+  const user = users.find((u) => u.email === email && u.password === password);
+  if (!user) {
+    return res.status(401).json({ message: 'Email o contraseña incorrectos' });
   }
 
-  user.otpCode = undefined;
-  user.otpExpiresAt = undefined;
-  await user.save();
+  const otp = generateOtp();
+  otpStore[email] = { otp, expiresAt: Date.now() + 10 * 60 * 1000 };
 
-  const sixMonths = 1000 * 60 * 60 * 24 * 30 * 6;
-  const mustChangePassword = !user.lastPasswordChange || (Date.now() - user.lastPasswordChange.getTime()) > sixMonths;
+  await sendEmailWithOtp(email, otp);
+  res.json({ message: 'OTP enviado al correo', otpPending: true });
+};
 
-  res.status(200).json({ message: 'Verificado', mustChangePassword });
+exports.verifyOtp = (req, res) => {
+  const { email, otp } = req.body;
+  const record = otpStore[email];
+
+  if (!record) return res.status(400).json({ message: 'No se solicitó OTP para este email' });
+  if (Date.now() > record.expiresAt) return res.status(400).json({ message: 'El código ha expirado' });
+  if (record.otp !== otp) return res.status(400).json({ message: 'Código incorrecto' });
+
+  delete otpStore[email];
+  res.json({ message: 'Autenticación exitosa' });
 };
