@@ -1,11 +1,22 @@
-import express from 'express';
-import multer from 'multer';
-import { uploadTemplate, listTemplates } from '../controllers/templatesController.js';
 
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const router = express.Router();
-const upload = multer({ dest: 'uploads/' });
 
-router.post('/upload', upload.single('template'), uploadTemplate);
-router.get('/', listTemplates);
+router.get('/:fileName/content', (req, res) => {
+  const fileName = req.params.fileName;
+  const filePath = path.join(__dirname, '..', 'Templates', fileName);
 
-export default router;
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      console.error(`Error al leer la plantilla ${fileName}:`, err.message);
+      return res.status(404).send('Plantilla no encontrada');
+    }
+
+    res.set('Content-Type', 'text/html');
+    res.send(data);
+  });
+});
+
+module.exports = router;
