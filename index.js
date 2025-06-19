@@ -1,27 +1,34 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import mongoose from 'mongoose';
-import templateRoutes from './routes/templates.js';
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+require('dotenv').config();
 
-dotenv.config();
+const sendEmailRoute = require('./routes/sendcommunicationemail');
+const sendSignatureRoute = require('./routes/sendsignaturerequest');
+
 const app = express();
-app.use(cors({ origin: 'https://insurancemultiservices.com' }));
+const PORT = process.env.PORT || 10000;
+
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}).then(() => console.log("✅ Conectado a MongoDB"))
-  .catch((err) => console.error("❌ Error en MongoDB:", err));
+})
+.then(() => console.log('✅ Conectado a MongoDB'))
+.catch((error) => console.error('❌ Error en MongoDB:', error));
 
 // Rutas
-app.use('/api/templates', templateRoutes);
+app.use('/api', sendEmailRoute);
+app.use('/api', sendSignatureRoute);
 
-// Iniciar servidor
-const PORT = process.env.PORT || 4000;
+// Ruta principal
+app.get('/', (req, res) => {
+  res.send('Backend de Insurance Multiservices funcionando');
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`);
 });
