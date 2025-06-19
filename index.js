@@ -10,8 +10,7 @@ const PORT = process.env.PORT || 10000;
 app.use(cors({
   origin: [
     'https://crm.insurancemultiservices.com',
-    'http://localhost:5173',
-    'https://insurancemultiservices.com'
+    'http://localhost:5173'
   ],
   credentials: true
 }));
