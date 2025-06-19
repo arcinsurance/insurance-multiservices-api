@@ -1,30 +1,36 @@
 
-const users = require('../data/users'); // Suponiendo que tienes una lista de usuarios
-const { sendEmailWithOtp, generateOtp, otpStore } = require('../utils/otpUtils');
+const nodemailer = require('nodemailer');
+require('dotenv').config();
 
-exports.login = async (req, res) => {
-  const { email, password } = req.body;
-
-  const user = users.find((u) => u.email === email && u.password === password);
-  if (!user) {
-    return res.status(401).json({ message: 'Email o contraseña incorrectos' });
-  }
-
-  const otp = generateOtp();
-  otpStore[email] = { otp, expiresAt: Date.now() + 10 * 60 * 1000 };
-
-  await sendEmailWithOtp(email, otp);
-  res.json({ message: 'OTP enviado al correo', otpPending: true });
-};
-
-exports.verifyOtp = (req, res) => {
+const sendOtp = async (req, res) => {
   const { email, otp } = req.body;
-  const record = otpStore[email];
 
-  if (!record) return res.status(400).json({ message: 'No se solicitó OTP para este email' });
-  if (Date.now() > record.expiresAt) return res.status(400).json({ message: 'El código ha expirado' });
-  if (record.otp !== otp) return res.status(400).json({ message: 'Código incorrecto' });
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS,
+      },
+    });
 
-  delete otpStore[email];
-  res.json({ message: 'Autenticación exitosa' });
+    await transporter.sendMail({
+      from: `"Insurance Multiservices" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: 'Código de verificación',
+      text: `Tu código de verificación es: ${otp}`,
+    });
+
+    res.status(200).json({ message: 'OTP enviado correctamente' });
+  } catch (error) {
+    console.error('Error al enviar OTP:', error);
+    res.status(500).json({ message: 'Error al enviar OTP' });
+  }
 };
+
+const verifyOtp = (req, res) => {
+  // Esta función debe implementarse según tu lógica de verificación
+  res.status(200).json({ message: 'OTP verificado (placeholder)' });
+};
+
+module.exports = { sendOtp, verifyOtp };
