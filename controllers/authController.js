@@ -1,36 +1,39 @@
+const Agent = require('../models/Agent'); // Ajusta según tu modelo real
 
-const nodemailer = require('nodemailer');
-require('dotenv').config();
+exports.sendOtp = (req, res) => {
+  // Placeholder
+  res.send('OTP enviado');
+};
 
-const sendOtp = async (req, res) => {
-  const { email, otp } = req.body;
+exports.verifyOtp = (req, res) => {
+  // Placeholder
+  res.send('OTP verificado');
+};
+
+exports.loginUser = async (req, res) => {
+  const { email, password } = req.body;
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
-    });
+    const agent = await Agent.findOne({ email });
 
-    await transporter.sendMail({
-      from: `"Insurance Multiservices" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: 'Código de verificación',
-      text: `Tu código de verificación es: ${otp}`,
-    });
+    if (!agent) {
+      return res.status(404).json({ message: 'Agente no encontrado' });
+    }
 
-    res.status(200).json({ message: 'OTP enviado correctamente' });
+    if (agent.password !== password) {
+      return res.status(401).json({ message: 'Contraseña incorrecta' });
+    }
+
+    res.status(200).json({
+      message: 'Inicio de sesión exitoso',
+      user: {
+        name: agent.name,
+        email: agent.email,
+        role: agent.role || 'agent'
+      }
+    });
   } catch (error) {
-    console.error('Error al enviar OTP:', error);
-    res.status(500).json({ message: 'Error al enviar OTP' });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
-
-const verifyOtp = (req, res) => {
-  // Esta función debe implementarse según tu lógica de verificación
-  res.status(200).json({ message: 'OTP verificado (placeholder)' });
-};
-
-module.exports = { sendOtp, verifyOtp };
