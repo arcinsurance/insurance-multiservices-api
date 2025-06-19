@@ -1,57 +1,34 @@
+// routes/sendsignaturerequest.js
+const express = require('express');
+const router = express.Router();
+const axios = require('axios');
 
-import axios from 'axios';
-import dotenv from 'dotenv';
+router.post('/send-signature-request', async (req, res) => {
+  const { name, email, documentUrl } = req.body;
 
-dotenv.config();
-
-export default async function sendSignatureRequest(req, res) {
   try {
-    const pdfBuffer = req.file.buffer;
-    const base64File = pdfBuffer.toString('base64');
-    const { recipientEmail, documentTitle } = req.body;
-
-    if (!recipientEmail || !documentTitle || !base64File) {
-      return res.status(400).json({ success: false, error: "Faltan datos requeridos." });
-    }
-
-    const annotations = [
+    const response = await axios.post(
+      'https://api.pdf.co/v1/sign/v2',
       {
-        text: "Firme aquí",
-        x: 50,
-        y: 700,
-        pages: "1",
-        type: "signature",
-        width: 150,
-        height: 40
-      }
-    ];
-
-    const payload = {
-      name: documentTitle,
-      async: false,
-      file: base64File,
-      inline: true,
-      annotations: annotations,
-      profiles: ["signature"],
-      encrypt: false,
-      expiresIn: 72
-    };
-
-    const pdfcoResponse = await axios.post(
-      'https://api.pdf.co/v1/pdf/sign/add',
-      payload,
+        url: documentUrl,
+        async: false,
+        name,
+        recipient: email,
+        disableBrowserRedirect: true,
+      },
       {
         headers: {
           'x-api-key': process.env.PDFCO_API_KEY,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       }
     );
 
-    console.log("✅ Respuesta de PDF.co:", pdfcoResponse.data);
-    res.status(200).json({ success: true, data: pdfcoResponse.data });
+    res.status(200).json({ message: 'Solicitud enviada', data: response.data });
   } catch (error) {
-    console.error("❌ Error PDF.co:", error.response?.data || error.message);
-    res.status(500).json({ success: false, error: "Error al enviar documento a PDF.co" });
+    console.error('Error al enviar solicitud de firma:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Error al enviar solicitud de firma' });
   }
-}
+});
+
+module.exports = router;
