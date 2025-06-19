@@ -1,25 +1,27 @@
-
 import express from 'express';
 import dotenv from 'dotenv';
-import multer from 'multer';
-import sendCommunicationEmail from './routes/sendCommunicationEmail.js';
-import sendSignatureRequest from './routes/sendSignatureRequest.js';
-import importClients from './routes/importClients.js';
+import cors from 'cors';
+import mongoose from 'mongoose';
+import templateRoutes from './routes/templates.js';
 
 dotenv.config();
-
 const app = express();
-const port = process.env.PORT || 10000;
-
+app.use(cors({ origin: 'https://insurancemultiservices.com' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const upload = multer();
+// Conexión a MongoDB
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => console.log("✅ Conectado a MongoDB"))
+  .catch((err) => console.error("❌ Error en MongoDB:", err));
 
-app.post('/api/send-communication-email', sendCommunicationEmail);
-app.post('/api/send-signature-request', upload.single('pdf'), sendSignatureRequest);
-app.post('/api/import-clients', upload.single('csv'), importClients);
+// Rutas
+app.use('/api/templates', templateRoutes);
 
-app.listen(port, () => {
-  console.log(`✅ Backend server running on port ${port}`);
+// Iniciar servidor
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`);
 });
