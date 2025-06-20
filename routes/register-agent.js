@@ -1,40 +1,42 @@
-
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
-const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const Agent = require('../models/Agent'); // Asegúrate de que exista el modelo Agent y esté bien configurado
 
-const agentSchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
-  password: String,
-  role: { type: String, default: 'agent' },
-  status: { type: String, default: 'active' }
-});
-
-const Agent = mongoose.models.Agent || mongoose.model('Agent', agentSchema);
-
+// Ruta: POST /api/register-agent
 router.post('/', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!email || !password || !name) {
-      return res.status(400).json({ message: 'Name, email and password are required' });
+    // Verifica que todos los campos estén presentes
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Faltan campos obligatorios' });
     }
 
-    const existing = await Agent.findOne({ email });
-    if (existing) {
-      return res.status(409).json({ message: 'Agent with this email already exists' });
+    // Verifica si el agente ya existe
+    const existingAgent = await Agent.findOne({ email });
+    if (existingAgent) {
+      return res.status(409).json({ message: 'El agente ya está registrado' });
     }
 
+    // Hashea la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newAgent = new Agent({ name, email, password: hashedPassword });
+
+    // Crea y guarda el nuevo agente
+    const newAgent = new Agent({
+      name,
+      email,
+      password: hashedPassword,
+      role: 'agent',
+      active: true
+    });
+
     await newAgent.save();
 
-    res.status(201).json({ message: 'Agent created successfully' });
+    res.status(201).json({ message: 'Agente registrado exitosamente' });
   } catch (error) {
-    console.error('Error registering agent:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Error registrando agente:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
 
