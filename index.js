@@ -6,7 +6,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Configurar CORS
+// CORS
 app.use(cors({
   origin: [
     'https://crm.insurancemultiservices.com',
@@ -15,18 +15,23 @@ app.use(cors({
   credentials: true
 }));
 
-// Middlewares de parsing
+// Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas del sistema
+// Rutas
 app.use('/api/send-email', require('./routes/sendcommunicationemail'));
-app.use('/api/send-signature', require('./routes/sendSignatureRequest')); // ✅ Ruta corregida con mayúscula
+app.use('/api/send-signature', require('./routes/sendSignatureRequest'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/import-clients', require('./routes/importClients'));
+
+// ✅ Ruta para login, OTP, y otros accesos de auth
 app.use('/api/auth', require('./routes/auth'));
 
-// Conexión a MongoDB y arranque del servidor
+// ✅ Ruta específica para registrar agentes (nueva línea necesaria)
+app.use('/api/register-agent', require('./routes/register-agent'));  // 👈 Esta es la línea que faltaba
+
+// Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
