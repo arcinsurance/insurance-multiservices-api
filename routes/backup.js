@@ -6,7 +6,13 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 
-const upload = multer({ dest: 'uploads/' });
+// 🔧 Crear carpeta uploads/ si no existe
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const upload = multer({ dest: uploadDir });
 
 // ✅ Ruta para generar y descargar backup
 router.get('/download', async (req, res) => {
