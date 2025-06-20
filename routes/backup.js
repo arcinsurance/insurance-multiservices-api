@@ -15,11 +15,18 @@ router.get('/download', async (req, res) => {
       backup[col.name] = data;
     }
 
-    const filePath = path.join(__dirname, '../tmp/backup.json');
+    const tmpDir = path.join(__dirname, '../tmp');
+
+    // 🔧 Crea la carpeta tmp si no existe
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir);
+    }
+
+    const filePath = path.join(tmpDir, 'backup.json');
     fs.writeFileSync(filePath, JSON.stringify(backup, null, 2));
 
     res.download(filePath, 'backup_insurance_multiservices.json', () => {
-      fs.unlinkSync(filePath); // Elimina el archivo temporal
+      fs.unlinkSync(filePath); // Elimina el archivo temporal después de descargarlo
     });
   } catch (error) {
     console.error('Error al generar backup manual:', error);
