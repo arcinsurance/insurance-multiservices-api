@@ -1,3 +1,17 @@
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const upload = multer({ dest: uploadDir });
+
 router.post('/restore', upload.single('backup'), async (req, res) => {
   try {
     if (!req.file) {
@@ -24,3 +38,5 @@ router.post('/restore', upload.single('backup'), async (req, res) => {
     res.status(500).json({ message: 'Error restaurando backup', error: error.message });
   }
 });
+
+module.exports = router;
