@@ -1,10 +1,14 @@
+
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 
-// Endpoint para descargar el backup manualmente
+const upload = multer({ dest: 'uploads/' });
+
+// ✅ Ruta para generar y descargar backup
 router.get('/download', async (req, res) => {
   try {
     const collections = await mongoose.connection.db.listCollections().toArray();
@@ -16,21 +20,40 @@ router.get('/download', async (req, res) => {
     }
 
     const tmpDir = path.join(__dirname, '../tmp');
-
-    // 🔧 Crea la carpeta tmp si no existe
-    if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir);
-    }
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
     const filePath = path.join(tmpDir, 'backup.json');
     fs.writeFileSync(filePath, JSON.stringify(backup, null, 2));
 
     res.download(filePath, 'backup_insurance_multiservices.json', () => {
-      fs.unlinkSync(filePath); // Elimina el archivo temporal después de descargarlo
+      fs.unlinkSync(filePath);
     });
   } catch (error) {
     console.error('Error al generar backup manual:', error);
     res.status(500).json({ message: 'Error al generar backup', error: error.message });
+  }
+});
+
+// ✅ Ruta para restaurar backup desde archivo
+router.post('/restore', upload.single('backup'), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const rawData = fs.readFileSync(filePath);
+    const backupData = JSON.parse(rawData);
+
+    for (const collectionName in backupData) {
+      const collection = mongoose.connection.db.collection(collectionName);
+      await collection.deleteMany({});
+      if (backupData[collectionName].length > 0) {
+        await collection.insertMany(backupData[collectionName]);
+      }
+    }
+
+    fs.unlinkSync(filePath);
+    res.json({ message: 'Backup restaurado con éxito' });
+  } catch (error) {
+    console.error('Error restaurando backup:', error);
+    res.status(500).json({ message: 'Error restaurando backup', error: error.message });
   }
 });
 
