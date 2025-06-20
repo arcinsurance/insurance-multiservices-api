@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -6,7 +7,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// CORS
 app.use(cors({
   origin: [
     'https://crm.insurancemultiservices.com',
@@ -15,11 +15,9 @@ app.use(cors({
   credentials: true
 }));
 
-// Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas principales
 app.use('/api/send-email', require('./routes/sendcommunicationemail'));
 app.use('/api/send-signature', require('./routes/sendSignatureRequest'));
 app.use('/api/templates', require('./routes/templates'));
@@ -28,11 +26,8 @@ app.use('/api/agents', require('./routes/agents'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/register-agent', require('./routes/register-agent'));
+app.use('/api/backup', require('./routes/backup'));
 
-// ✅ Ruta para descargar backup
-app.use('/api/backup', require('./routes/backup')); // ✅ Esta línea permite el acceso a /api/backup/download
-
-// Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
