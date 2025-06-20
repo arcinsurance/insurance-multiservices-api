@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -7,6 +6,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// ✅ CORS antes de cualquier ruta
 app.use(cors({
   origin: [
     'https://crm.insurancemultiservices.com',
@@ -14,10 +14,13 @@ app.use(cors({
   ],
   credentials: true
 }));
+app.options('*', cors()); // 👉 importante para preflight
 
+// Middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Rutas
 app.use('/api/send-email', require('./routes/sendcommunicationemail'));
 app.use('/api/send-signature', require('./routes/sendSignatureRequest'));
 app.use('/api/templates', require('./routes/templates'));
@@ -28,6 +31,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/register-agent', require('./routes/register-agent'));
 app.use('/api/backup', require('./routes/backup'));
 
+// MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
