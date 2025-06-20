@@ -24,6 +24,7 @@ app.use('/api/send-email', require('./routes/sendcommunicationemail'));
 app.use('/api/send-signature', require('./routes/sendSignatureRequest'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/import-clients', require('./routes/importClients'));
+app.use('/api/agents', require('./routes/agents'));
 
 // ✅ Ruta para login, OTP, y otros accesos de auth
 app.use('/api/auth', require('./routes/auth'));
