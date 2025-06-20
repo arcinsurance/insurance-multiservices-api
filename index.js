@@ -25,11 +25,11 @@ app.use('/api/send-email', require('./routes/sendcommunicationemail'));
 app.use('/api/send-signature', require('./routes/sendSignatureRequest'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/import-clients', require('./routes/importClients'));
-app.use('/api/agents', require('./routes/agents'));
+app.use('/api/agents', require('./routes/agents')); // incluye login y registro
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/register-agent', require('./routes/register-agent'));
-app.use('/api/backup', require('./routes/backup'));
+app.use('/api/register-agent', require('./routes/register-agent')); // opcional, solo si quieres mantenerla separada
+app.use('/api/backup', require('./routes/backup')); // ✅ asegurada
 
 // ✅ Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
@@ -44,4 +44,3 @@ mongoose.connect(process.env.MONGODB_URI, {
 .catch((error) => {
   console.error('❌ Error en MongoDB:', error);
 });
-// Entry point for the backend
