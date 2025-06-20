@@ -1,18 +1,18 @@
 
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const router = express.Router();
 
-const templatesDir = path.join(__dirname, '../uploads/templates');
-
-router.get('/:fileName/content', (req, res) => {
-  const filePath = path.join(templatesDir, req.params.fileName);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).send('Template not found');
+// Mock de templates para pruebas
+router.get('/', async (req, res) => {
+  try {
+    const templates = [
+      { id: 1, name: 'Bienvenida', content: 'Hola, bienvenido a nuestro sistema.' },
+      { id: 2, name: 'Renovación', content: 'Recuerda renovar tu póliza pronto.' }
+    ];
+    res.json(templates);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener los templates', error: error.message });
   }
-  res.setHeader('Content-Type', 'text/html');
-  fs.createReadStream(filePath).pipe(res);
 });
 
 module.exports = router;
