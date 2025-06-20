@@ -2,7 +2,6 @@
 const express = require('express');
 const router = express.Router();
 
-// Mock de templates para pruebas
 router.get('/', async (req, res) => {
   try {
     const templates = [
