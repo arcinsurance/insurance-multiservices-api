@@ -19,20 +19,18 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas
+// Rutas principales
 app.use('/api/send-email', require('./routes/sendcommunicationemail'));
 app.use('/api/send-signature', require('./routes/sendSignatureRequest'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/import-clients', require('./routes/importClients'));
 app.use('/api/agents', require('./routes/agents'));
 app.use('/api/clients', require('./routes/clients'));
-
-
-// ✅ Ruta para login, OTP, y otros accesos de auth
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/register-agent', require('./routes/register-agent'));
 
-// ✅ Ruta específica para registrar agentes (nueva línea necesaria)
-app.use('/api/register-agent', require('./routes/register-agent'));  // 👈 Esta es la línea que faltaba
+// ✅ Ruta para descargar backup
+app.use('/api/backup', require('./routes/backup')); // ✅ Esta línea permite el acceso a /api/backup/download
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
