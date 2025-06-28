@@ -1,12 +1,22 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('./index');
 
-const clienteSchema = new mongoose.Schema({
-  nombre: { type: String, required: true },
-  apellido: { type: String, required: true },
-  email: String,
-  telefono: String,
-  fecha_inicio: String,
-  aseguradora: String,
-}, { timestamps: true });
+const Cliente = sequelize.define('Cliente', {
+  nombre: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  apellido: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  email: DataTypes.STRING,
+  telefono: DataTypes.STRING,
+  fecha_inicio: DataTypes.STRING,
+  aseguradora: DataTypes.STRING,
+}, {
+  tableName: 'clientes',
+  timestamps: true,
+});
 
-module.exports = mongoose.model('Cliente', clienteSchema);
+module.exports = Cliente;
