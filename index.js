@@ -1,46 +1,33 @@
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import mysql from 'mysql2/promise';
+
+dotenv.config();
 
 const app = express();
+app.use(cors());
+app.use(express.json());
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  port: process.env.DB_PORT,
+});
+
+// Endpoint de prueba
+app.get('/api/products', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM products');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 10000;
-
-// ✅ CORS configurado correctamente
-app.use(cors({
-  origin: [
-    'https://crm.insurancemultiservices.com',
-    'http://localhost:5173'
-  ],
-  credentials: true
-}));
-app.options('*', cors());
-
-// ✅ Middlewares
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// ✅ Rutas principales
-app.use('/api/send-email', require('./routes/sendcommunicationemail'));
-app.use('/api/send-signature', require('./routes/sendSignatureRequest'));
-app.use('/api/templates', require('./routes/templates'));
-app.use('/api/import-clients', require('./routes/importClients'));
-app.use('/api/agents', require('./routes/agents')); // incluye login y registro
-app.use('/api/clients', require('./routes/clients'));
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/register-agent', require('./routes/register-agent')); // opcional, solo si quieres mantenerla separada
-app.use('/api/backup', require('./routes/backup')); // ✅ asegurada
-
-// ✅ Conexión a MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => {
-  console.log('✅ Conectado a MongoDB');
-  console.log(`🌐 Puerto asignado por Render: ${PORT}`);
-  app.listen(PORT, () => console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`));
-})
-.catch((error) => {
-  console.error('❌ Error en MongoDB:', error);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
