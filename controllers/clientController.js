@@ -1,6 +1,6 @@
 const Cliente = require('../models/Cliente');
 
-// Importar clientes en lote (ya lo tienes)
+// Importar clientes en lote
 exports.importClients = async (req, res) => {
   try {
     const clientes = req.body;
@@ -49,6 +49,8 @@ exports.importClients = async (req, res) => {
 
 // 🚀 NUEVA FUNCIÓN: Crear cliente individual
 exports.createClient = async (req, res) => {
+  console.log('Datos recibidos para crear cliente:', req.body); // Log para depurar
+
   try {
     const { nombre, apellido, email, telefono, fecha_inicio, aseguradora } = req.body;
 
@@ -68,6 +70,7 @@ exports.createClient = async (req, res) => {
 
     res.status(201).json(nuevoCliente);
   } catch (error) {
+    console.error('Error creando cliente:', error);  // Log de error
     res.status(500).json({ message: 'Error al crear el cliente', error: error.message });
   }
 };
