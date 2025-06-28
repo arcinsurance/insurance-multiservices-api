@@ -18,7 +18,7 @@ exports.importClients = async (req, res) => {
       }
 
       // Busca por nombre y apellido
-      let existente = await Cliente.findOne({ nombre: c.nombre, apellido: c.apellido });
+      let existente = await Cliente.findOne({ where: { nombre: c.nombre, apellido: c.apellido } });
 
       if (existente) {
         existente.email = c.email || existente.email;
