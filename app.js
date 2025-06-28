@@ -13,8 +13,9 @@ app.use((req, res, next) => {
   next();
 });
 
-const clientRoutes = require('./routes/clientRoutes');
-app.use('/api/clients', clientRoutes);
+// Importa las rutas de clientes (en español)
+const clienteRoutes = require('./routes/clienteRoutes');
+app.use('/api/clientes', clienteRoutes);
 
 const PORT = process.env.PORT || 10000;
 
