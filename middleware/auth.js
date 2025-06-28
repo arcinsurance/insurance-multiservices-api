@@ -1,1 +1,7 @@
-
+// Middleware para verificar usuario y rol de admin
+module.exports = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Acceso restringido' });
+  }
+  next();
+};
