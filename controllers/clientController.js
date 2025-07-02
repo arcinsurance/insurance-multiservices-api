@@ -1,6 +1,6 @@
 const Cliente = require('../models/Cliente');
 
-// Importar clientes en lote
+// Importar clientes en lote (tu código actual, está perfecto)
 exports.importClients = async (req, res) => {
   try {
     const clientes = req.body;
@@ -47,16 +47,21 @@ exports.importClients = async (req, res) => {
   }
 };
 
-// 🚀 NUEVA FUNCIÓN: Crear cliente individual
+// Crear cliente individual (tu función, pero mejorada con validación de email único)
 exports.createClient = async (req, res) => {
-  console.log('Datos recibidos para crear cliente:', req.body); // Log para depurar
-
   try {
     const { nombre, apellido, email, telefono, fecha_inicio, aseguradora } = req.body;
 
-    // Validar campos requeridos
     if (!nombre || !apellido) {
       return res.status(400).json({ message: 'Nombre y apellido son obligatorios' });
+    }
+
+    // Validar email único si se envía email
+    if (email) {
+      const existe = await Cliente.findOne({ where: { email } });
+      if (existe) {
+        return res.status(400).json({ message: 'El correo ya está registrado.' });
+      }
     }
 
     const nuevoCliente = await Cliente.create({
@@ -70,7 +75,67 @@ exports.createClient = async (req, res) => {
 
     res.status(201).json(nuevoCliente);
   } catch (error) {
-    console.error('Error creando cliente:', error);  // Log de error
     res.status(500).json({ message: 'Error al crear el cliente', error: error.message });
+  }
+};
+
+// Listar todos los clientes
+exports.getAllClients = async (req, res) => {
+  try {
+    const clientes = await Cliente.findAll();
+    res.json(clientes);
+  } catch (error) {
+    res.status(500).json({ message: 'Error obteniendo clientes.', error: error.message });
+  }
+};
+
+// Obtener un cliente específico por ID
+exports.getClientById = async (req, res) => {
+  try {
+    const cliente = await Cliente.findByPk(req.params.id);
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente no encontrado.' });
+    }
+    res.json(cliente);
+  } catch (error) {
+    res.status(500).json({ message: 'Error obteniendo cliente.', error: error.message });
+  }
+};
+
+// Actualizar un cliente existente
+exports.updateClient = async (req, res) => {
+  try {
+    const { nombre, apellido, email, telefono, fecha_inicio, aseguradora } = req.body;
+    const cliente = await Cliente.findByPk(req.params.id);
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente no encontrado.' });
+    }
+
+    // Validar email único si cambia
+    if (email && email !== cliente.email) {
+      const existe = await Cliente.findOne({ where: { email } });
+      if (existe) {
+        return res.status(400).json({ message: 'El correo ya está registrado en otro cliente.' });
+      }
+    }
+
+    await cliente.update({ nombre, apellido, email, telefono, fecha_inicio, aseguradora });
+    res.json(cliente);
+  } catch (error) {
+    res.status(500).json({ message: 'Error actualizando cliente.', error: error.message });
+  }
+};
+
+// Eliminar un cliente
+exports.deleteClient = async (req, res) => {
+  try {
+    const cliente = await Cliente.findByPk(req.params.id);
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente no encontrado.' });
+    }
+    await cliente.destroy();
+    res.json({ message: 'Cliente eliminado correctamente.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error eliminando cliente.', error: error.message });
   }
 };
