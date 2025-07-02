@@ -3,12 +3,28 @@ const router = express.Router();
 const clientController = require('../controllers/clientController');
 const auth = require('../middleware/auth');
 
-router.post('/import', auth, clientController.importClients);
+// Aplica autenticación a todas las rutas de este router
+router.use(auth);
 
-// 🚀 NUEVA RUTA: Crear cliente individual
-router.post('/', auth, clientController.createClient);
+// Importar clientes masivamente (por archivo)
+router.post('/import', clientController.importClients);
 
-// 🚀 RUTA DE PRUEBA: verificar conexión
+// Crear un cliente individual
+router.post('/', clientController.createClient);
+
+// Listar todos los clientes (puedes agregar paginación en el controlador)
+router.get('/', clientController.getAllClients);
+
+// Obtener un cliente específico por ID
+router.get('/:id', clientController.getClientById);
+
+// Actualizar un cliente existente
+router.put('/:id', clientController.updateClient);
+
+// Eliminar un cliente
+router.delete('/:id', clientController.deleteClient);
+
+// Ruta de prueba (opcional, la puedes quitar después)
 router.get('/test', (req, res) => {
   res.json({ message: 'Ruta clientes funcionando' });
 });
