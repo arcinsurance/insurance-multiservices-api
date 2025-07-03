@@ -8,15 +8,20 @@ import { db } from './config/db';
 
 dotenv.config(); // ✅ Siempre al inicio
 
-const app = express(); // ✅ Aquí se define antes de usar
+const app = express(); // ✅ Define express app
 
-app.use(cors());
+// ✅ CONFIGURAR CORS CORRECTAMENTE
+app.use(cors({
+  origin: 'https://crm.insurancemultiservices.com',
+  credentials: true,
+}));
+
 app.use(express.json());
 
-// 🔐 Rutas API
+// ✅ Rutas API
 app.use('/api/clients', clientRoutes);
 app.use('/api/agents', agentRoutes);
-app.use('/api/auth', authRoutes); // ✅ Esto ya funciona ahora
+app.use('/api/auth', authRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
