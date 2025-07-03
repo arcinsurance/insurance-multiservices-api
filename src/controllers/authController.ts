@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import db from '../db'; // Asegúrate de que este sea tu pool de conexión MySQL
+import { db } from '../config/db'; // Asegúrate de que este sea tu pool de conexión MySQL
 import jwt from 'jsonwebtoken';
 
 export const login = async (req: Request, res: Response) => {
