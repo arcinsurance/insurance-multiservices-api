@@ -6,6 +6,7 @@ import clientRoutes from './routes/clients';
 import agentRoutes from './routes/agents';
 import authRoutes from './routes/auth';
 import productCategoryRoutes from './routes/productCategories'; // ➜ Rutas de categorías
+import changePasswordRoute from './routes/changePassword'; // ✅ NUEVA ruta para cambiar contraseña
 
 import { db } from './config/db';
 
@@ -38,6 +39,7 @@ app.use(express.json());
 app.use('/api/clients', clientRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', changePasswordRoute); // ✅ Ruta agregada aquí
 app.use('/api/product-categories', productCategoryRoutes); // ➜ CRUD de categorías
 
 /* ───────────── Puerto ───────────── */
