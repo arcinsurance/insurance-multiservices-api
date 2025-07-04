@@ -24,19 +24,15 @@ export const sendAgentWelcomeEmail = async (
     subject: 'Bienvenido al CRM de Insurance Multiservices',
     html: `
       <h2>Hola ${fullName},</h2>
-      <p>Te damos la bienvenida a la plataforma CRM de Insurance Multiservices.</p>
-
+      <p>Te damos la bienvenida a nuestra plataforma CRM.</p>
       <p><strong>Tu usuario:</strong> ${email}</p>
       <p><strong>Tu contraseña temporal:</strong> ${tempPassword}</p>
-
-      <p>⚠️ <strong>Importante:</strong> Esta contraseña temporal es válida solo por <strong>24 horas</strong>. Al ingresar por primera vez, deberás cambiarla por una definitiva.</p>
-
-      <p>Puedes acceder aquí: 
+      <p>Este enlace te lleva directamente al sistema: 
         <a href="https://crm.insurancemultiservices.com" target="_blank">
-          https://crm.insurancemultiservices.com
+          crm.insurancemultiservices.com
         </a>
       </p>
-
+      <p><strong>Importante:</strong> Esta contraseña temporal expirará en 24 horas. Te pediremos que la cambies al iniciar sesión.</p>
       <br/>
       <p>Saludos,<br>Equipo de Insurance Multiservices</p>
     `,
