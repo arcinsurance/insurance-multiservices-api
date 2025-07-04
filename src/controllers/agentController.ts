@@ -2,9 +2,11 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
+import { sendAgentWelcomeEmail } from '../utils/emailService'; // → implementar en el siguiente paso
 
 /* ------------------------------------------------------------------ */
-/* 1. Crear agente + permisos + licencias                              */
+/* 1. Crear agente: genera password temporal + email + relaciones      */
 /* ------------------------------------------------------------------ */
 export const createAgent = async (req: Request, res: Response) => {
   const conn = await db.getConnection();
@@ -20,17 +22,25 @@ export const createAgent = async (req: Request, res: Response) => {
       licenses = [],            // { state, licenseNumber, expiryDate }[]
     } = req.body;
 
-    const full_name = fullName;         // compatibilidad con la BD
-    const agentId   = uuidv4();         // id único
+    if (!fullName || !email) {
+      return res.status(400).json({ error: 'fullName and email are required' });
+    }
+
+    /* --------- Generar password temporal --------- */
+    const tempPassword = Math.random().toString(36).slice(-8); // 8 caracteres
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    const agentId  = uuidv4();
+    const full_name = fullName;  // compatibilidad BD
 
     await conn.beginTransaction();
 
     /* ---------- 1) Agente ---------- */
     await conn.execute(
       `INSERT INTO agents
-         (id, full_name, email, phone, npn, role, is_active)
-       VALUES (?,  ?,         ?,     ?,    ?,   ?,    1)`,
-      [agentId, full_name, email, phone ?? null, npn ?? null, role],
+         (id, full_name, email, phone, npn, role, password, must_change_password, is_active)
+       VALUES (?,  ?,         ?,     ?,    ?,   ?,   ?,        1,                    1)`,
+      [agentId, full_name, email, phone ?? null, npn ?? null, role, hashedPassword],
     );
 
     /* ---------- 2) Permisos ---------- */
@@ -55,6 +65,15 @@ export const createAgent = async (req: Request, res: Response) => {
 
     await conn.commit();
 
+    /* ---------- 4) Email de bienvenida ---------- */
+    // Implementaremos esta función en el siguiente paso
+    await sendAgentWelcomeEmail({
+      to: email,
+      name: fullName,
+      tempPassword,
+      loginUrl: 'https://crm.insurancemultiservices.com/login',
+    });
+
     res.status(201).json({
       id: agentId,
       fullName,
@@ -63,6 +82,7 @@ export const createAgent = async (req: Request, res: Response) => {
       npn,
       role,
       isActive: true,
+      mustChangePassword: true,
       permissions,
       licenses,
     });
@@ -104,6 +124,7 @@ export const getAllAgents = async (_req: Request, res: Response) => {
       npn:         r.npn,
       role:        r.role,
       isActive:    !!r.is_active,
+      mustChangePassword: !!r.must_change_password,
       permissions: r.permissions ? JSON.parse(r.permissions) : [],
       licenses:    r.licenses    ? JSON.parse(r.licenses)    : [],
     }));
@@ -125,16 +146,12 @@ export const deleteAgent = async (req: Request, res: Response) => {
   try {
     await conn.beginTransaction();
 
-    // Borramos primero relaciones hijas
     await conn.execute(`DELETE FROM agent_permissions WHERE agent_id = ?`, [id]);
     await conn.execute(`DELETE FROM agent_licenses    WHERE agent_id = ?`, [id]);
-
-    // Luego el agente
     const [result] = await conn.execute(`DELETE FROM agents WHERE id = ?`, [id]);
     await conn.commit();
 
-    const affected = (result as any).affectedRows;
-    if (affected === 0) {
+    if ((result as any).affectedRows === 0) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
