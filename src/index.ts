@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import clientRoutes from './routes/clients';
 import agentRoutes from './routes/agents';
 import authRoutes from './routes/auth';
-import productCategoryRoutes from './routes/productCategories'; // ✅ NUEVA IMPORTACIÓN
+import productCategoryRoutes from './routes/productCategories'; // ➜ Rutas de categorías
 
 import { db } from './config/db';
 
@@ -13,32 +13,34 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CONFIGURAR CORS CORRECTAMENTE
+/* ───────────── CORS ───────────── */
 const allowedOrigins = [
-  'https://crm.insurancemultiservices.com',
-  'http://localhost:5173', // opcional para desarrollo
+  'https://crm.insurancemultiservices.com', // producción
+  'http://localhost:5173',                  // desarrollo local
 ];
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }),
+);
 
+// Manejo explícito de preflight (OPTIONS)
 app.options('*', cors());
 
+/* ───────────── Middlewares ───────────── */
 app.use(express.json());
 
-// ✅ Rutas existentes
+/* ───────────── Rutas API ───────────── */
 app.use('/api/clients', clientRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/product-categories', productCategoryRoutes); // ➜ CRUD de categorías
 
-// ✅ Nueva ruta para product categories
-app.use('/api/product-categories', productCategoryRoutes); // ✅ NUEVA RUTA
-
-// ✅ Puerto
+/* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
