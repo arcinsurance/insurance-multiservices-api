@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { v4 as uuidv4 } from 'uuid';
 
-/* --------------------------------------------- */
-/* Crear un nuevo producto                       */
-/* --------------------------------------------- */
+/* -------------------------------------------------------- */
+/* 1. Crear un nuevo producto                               */
+/* -------------------------------------------------------- */
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const { name, description = '', is_active = true } = req.body;
@@ -23,9 +23,9 @@ export const createProduct = async (req: Request, res: Response) => {
   }
 };
 
-/* --------------------------------------------- */
-/* Obtener todos los productos                   */
-/* --------------------------------------------- */
+/* -------------------------------------------------------- */
+/* 2. Obtener todos los productos                           */
+/* -------------------------------------------------------- */
 export const getAllProducts = async (_req: Request, res: Response) => {
   try {
     const [rows] = await db.query('SELECT * FROM products ORDER BY created_at DESC');
@@ -36,9 +36,9 @@ export const getAllProducts = async (_req: Request, res: Response) => {
   }
 };
 
-/* --------------------------------------------- */
-/* Actualizar un producto por ID                 */
-/* --------------------------------------------- */
+/* -------------------------------------------------------- */
+/* 3. Actualizar producto                                   */
+/* -------------------------------------------------------- */
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -58,14 +58,14 @@ export const updateProduct = async (req: Request, res: Response) => {
   }
 };
 
-/* --------------------------------------------- */
-/* Eliminar un producto por ID                   */
-/* --------------------------------------------- */
+/* -------------------------------------------------------- */
+/* 4. Eliminar producto                                     */
+/* -------------------------------------------------------- */
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    await db.query(`DELETE FROM products WHERE id = ?`, [id]);
+    await db.query('DELETE FROM products WHERE id = ?', [id]);
 
     res.status(200).json({ message: 'Product deleted' });
   } catch (err) {
