@@ -10,7 +10,7 @@ router.post('/login', login);
 router.get('/me', getCurrentUser);
 import bcrypt from 'bcrypt';
 import { db } from '../config/db';
-import verifyToken from '../middlewares/verifyToken'; // Asegúrate de tener este middleware
+import { verifyToken } from '../middlewares/verifyToken'; // ✅ Correcto
 
 router.post('/change-password', verifyToken, async (req, res) => {
   const agentId = req.user?.id;
