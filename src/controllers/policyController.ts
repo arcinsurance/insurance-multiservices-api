@@ -5,60 +5,43 @@ export async function createPolicy(req: Request, res: Response) {
   const { clientId } = req.params;
   const {
     category,
-    ffmMarketplaceUsed,
-    npnMarketplaceUsed,
-    agentUsedOwnNpn,
-    typeOfSale,
-    effectiveDate,
-    marketplaceId,
-    memberId,
-    cmsPlanId,
-    carrier,
-    planName,
-    metalLevel,
-    policyTotalCost,
-    taxCreditSubsidy,
-    endDate,
-    status,
-    premium,
+    carrier = '',
+    planName = '',
+    effectiveDate = '',
+    ffmMarketplaceUsed = '',
+    npnMarketplaceUsed = '',
+    agentUsedOwnNpn = false,
+    typeOfSale = '',
+    marketplaceId = '',
+    memberId = '',
+    cmsPlanId = '',
+    metalLevel = '',
+    policyTotalCost = 0,
+    taxCreditSubsidy = 0,
+    endDate = '',
+    status = 'ACTIVE',
+    premium = 0
   } = req.body;
 
+  // Solo validamos "category" como obligatorio
   if (!category) {
-    return res.status(400).json({
-      message: 'To add a policy, you must provide the Category.',
-    });
+    return res.status(400).json({ message: 'Category is required' });
   }
 
-  try {
-    await db.execute(
-      `INSERT INTO policies 
-      (client_id, category, ffmMarketplaceUsed, npnMarketplaceUsed, agentUsedOwnNpn, typeOfSale, effectiveDate, marketplaceId, memberId, cmsPlanId, carrier, planName, metalLevel, policyTotalCost, taxCreditSubsidy, endDate, status, premium) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        clientId,
-        category,
-        ffmMarketplaceUsed,
-        npnMarketplaceUsed,
-        agentUsedOwnNpn ? 1 : 0,
-        typeOfSale,
-        effectiveDate,
-        marketplaceId,
-        memberId,
-        cmsPlanId,
-        carrier,
-        planName,
-        metalLevel,
-        policyTotalCost,
-        taxCreditSubsidy,
-        endDate,
-        status,
-        premium,
-      ]
-    );
+  const [result] = await db.execute(
+    `INSERT INTO policies (
+      client_id, category, carrier, plan_name, effective_date,
+      ffm_marketplace_used, npn_marketplace_used, agent_used_own_npn, type_of_sale,
+      marketplace_id, member_id, cms_plan_id, metal_level,
+      policy_total_cost, tax_credit_subsidy, end_date, status, premium
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      clientId, category, carrier, planName, effectiveDate,
+      ffmMarketplaceUsed, npnMarketplaceUsed, agentUsedOwnNpn, typeOfSale,
+      marketplaceId, memberId, cmsPlanId, metalLevel,
+      policyTotalCost, taxCreditSubsidy, endDate, status, premium
+    ]
+  );
 
-    res.status(201).json({ message: 'Policy created successfully.' });
-  } catch (error) {
-    console.error('Error creating policy:', error);
-    res.status(500).json({ message: 'Internal server error.' });
-  }
+  res.status(201).json({ id: (result as any).insertId });
 }
