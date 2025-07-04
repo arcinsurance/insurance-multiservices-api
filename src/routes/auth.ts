@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { db } from '../config/db';
 import { login, getCurrentUser } from '../controllers/authController';
-import { verifyToken, AuthenticatedRequest } from '../middlewares/verifyToken';
+import { verifyToken } from '../middlewares/verifyToken';
 
 const router = express.Router();
 
