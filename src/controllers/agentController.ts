@@ -8,26 +8,24 @@ import { v4 as uuidv4 } from 'uuid';
 /* ------------------------------------------------------------------ */
 export const createAgent = async (req: Request, res: Response) => {
   const conn = await db.getConnection();
-
   try {
-    /* --------- Campos que llegan del frontend --------- */
+    /* --------- Datos que llegan del frontend --------- */
     const {
       fullName,
       email,
       phone,
       npn,
-      role = 'AGENT',          // el frontend envía “AGENT” | “ADMIN”
-      permissions = [],        // string[]
-      licenses = [],           // { state, licenseNumber, expiryDate }[]
+      role = 'AGENT',           // “AGENT” | “ADMIN”
+      permissions = [],         // string[]
+      licenses = [],            // { state, licenseNumber, expiryDate }[]
     } = req.body;
 
-    /* --------- Normalizamos para la BD --------- */
-    const full_name = fullName;          // compatibilidad con columna full_name
-    const agentId   = uuidv4();          // generamos UUID nosotros mismos
+    const full_name = fullName;         // compatibilidad con la BD
+    const agentId   = uuidv4();         // id único
 
     await conn.beginTransaction();
 
-    /* ---------- 1) Inserta agente ---------- */
+    /* ---------- 1) Agente ---------- */
     await conn.execute(
       `INSERT INTO agents
          (id, full_name, email, phone, npn, role, is_active)
@@ -57,7 +55,6 @@ export const createAgent = async (req: Request, res: Response) => {
 
     await conn.commit();
 
-    /* ---------- Respuesta que el frontend entiende ---------- */
     res.status(201).json({
       id: agentId,
       fullName,
@@ -99,7 +96,6 @@ export const getAllAgents = async (_req: Request, res: Response) => {
       GROUP BY a.id
     `);
 
-    /* Convertimos los campos que vienen como texto JSON */
     const agents = (rows as any[]).map(r => ({
       id:          r.id,
       fullName:    r.full_name,
@@ -116,5 +112,38 @@ export const getAllAgents = async (_req: Request, res: Response) => {
   } catch (err) {
     console.error('Error fetching agents:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/* 3. Eliminar agente y sus relaciones                                 */
+/* ------------------------------------------------------------------ */
+export const deleteAgent = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // Borramos primero relaciones hijas
+    await conn.execute(`DELETE FROM agent_permissions WHERE agent_id = ?`, [id]);
+    await conn.execute(`DELETE FROM agent_licenses    WHERE agent_id = ?`, [id]);
+
+    // Luego el agente
+    const [result] = await conn.execute(`DELETE FROM agents WHERE id = ?`, [id]);
+    await conn.commit();
+
+    const affected = (result as any).affectedRows;
+    if (affected === 0) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    res.status(200).json({ message: 'Agent deleted successfully' });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Error deleting agent:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    conn.release();
   }
 };
