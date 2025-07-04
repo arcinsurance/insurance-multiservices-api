@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import clientRoutes from './routes/clients';
 import agentRoutes from './routes/agents';
 import authRoutes from './routes/auth';
+import productCategoryRoutes from './routes/productCategories'; // ✅ NUEVA IMPORTACIÓN
+
 import { db } from './config/db';
 
 dotenv.config();
@@ -14,7 +16,7 @@ const app = express();
 // ✅ CONFIGURAR CORS CORRECTAMENTE
 const allowedOrigins = [
   'https://crm.insurancemultiservices.com',
-  'http://localhost:5173' // opcional para desarrollo
+  'http://localhost:5173', // opcional para desarrollo
 ];
 
 app.use(cors({
@@ -24,16 +26,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ✅ Opcional pero recomendado: Manejar preflight explícitamente
 app.options('*', cors());
 
-// ✅ Middleware antes de las rutas
 app.use(express.json());
 
-// ✅ Tus rutas
+// ✅ Rutas existentes
 app.use('/api/clients', clientRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
+
+// ✅ Nueva ruta para product categories
+app.use('/api/product-categories', productCategoryRoutes); // ✅ NUEVA RUTA
 
 // ✅ Puerto
 const PORT = process.env.PORT || 3000;
