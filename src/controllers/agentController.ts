@@ -10,14 +10,17 @@ export const createAgent = async (req: Request, res: Response) => {
   const conn = await db.getConnection();
   try {
     const {
-      full_name,
-      email,
-      phone,
-      npn,
-      role = 'agent',
-      permissions = [],
-      licenses = [],
-    } = req.body;
+  fullName,
+  email,
+  phone,
+  npn,
+  role = 'agent',
+  permissions = [],
+  licenses = [],
+} = req.body;
+
+const full_name = fullName; // mapeo para mantener compatibilidad con la BD
+
 
     await conn.beginTransaction();
 
