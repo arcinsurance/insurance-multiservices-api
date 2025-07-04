@@ -1,5 +1,8 @@
 import express from 'express';
+import bcrypt from 'bcrypt';
+import { db } from '../config/db';
 import { login, getCurrentUser } from '../controllers/authController';
+import { verifyToken, AuthenticatedRequest } from '../middlewares/verifyToken';
 
 const router = express.Router();
 
@@ -7,12 +10,10 @@ const router = express.Router();
 router.post('/login', login);
 
 // Ruta para obtener el usuario actual a partir del token
-router.get('/me', getCurrentUser);
-import bcrypt from 'bcrypt';
-import { db } from '../config/db';
-import { verifyToken } from '../middlewares/verifyToken'; // ✅ Correcto
+router.get('/me', verifyToken, getCurrentUser);
 
-router.post('/change-password', verifyToken, async (req, res) => {
+// Ruta protegida para cambiar la contraseña temporal
+router.post('/change-password', verifyToken, async (req: AuthenticatedRequest, res) => {
   const agentId = req.user?.id;
   const { newPassword } = req.body;
 
