@@ -1,44 +1,57 @@
+/* src/controllers/clientController.ts */
 import { Request, Response } from 'express';
 import { db } from '../config/db';
+import { v4 as uuidv4 } from 'uuid';
 
-/* ----------------- GET ALL ----------------- */
+/* ---------------------------- GET ALL ---------------------------- */
 export async function getClients(_req: Request, res: Response) {
   const [rows] = await db.query('SELECT * FROM clients');
   res.json(rows);
 }
 
-/* ----------------- CREATE ------------------ */
+/* ---------------------------- CREATE ----------------------------- */
 export async function createClient(req: Request, res: Response) {
   try {
     const data = req.body;
 
-    /* Validación mínima */
+    /* —— Validación mínima —— */
     if (!data.firstName || !data.lastName) {
-      return res.status(400).json({ message: 'firstName and lastName are required.' });
+      return res
+        .status(400)
+        .json({ message: 'firstName and lastName are required.' });
     }
 
-    /* ---------- agente asignado & nombre ---------- */
+    /* —— Agente asignado —— */
     const agentId: string | null = data.assignedAgentId ?? null;
 
     let agentFullName: string | null = null;
     if (agentId) {
-      const [agents] = await db.query('SELECT full_name FROM users WHERE id = ?', [agentId]);
-      if ((agents as any[]).length) {
-        agentFullName = (agents as any[])[0].full_name ?? null;
+      // ⚠️ Ajusta el nombre de tabla si NO se llama “agents”
+      const [rows] = await db.query(
+        'SELECT full_name FROM agents WHERE id = ?',
+        [agentId]
+      );
+      if ((rows as any[]).length) {
+        agentFullName = (rows as any[])[0].full_name ?? null;
       }
     }
 
-    /* ---------- Inserción ---------- */
-    const [result] = await db.execute(
+    /* —— Generar ID manual (evita duplicados '') —— */
+    const id = uuidv4();
+
+    /* —— Insertar —— */
+    await db.execute(
       `INSERT INTO clients (
+        id,
         agent_id, assigned_agent_full_name,
         first_name, middle_name, last_name, last_name_2,
         email, phone,
         date_of_birth, gender, preferred_language,
         is_tobacco_user, is_pregnant, is_lead,
         date_added
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
+        id,
         agentId,
         agentFullName,
 
@@ -60,14 +73,15 @@ export async function createClient(req: Request, res: Response) {
       ]
     );
 
-    res.status(201).json({ id: (result as any).insertId });
+    /* —— Respuesta —— */
+    res.status(201).json({ id });
   } catch (err) {
     console.error('Error creating client:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-/* ----------------- UPDATE ----------------- */
+/* ---------------------------- UPDATE ----------------------------- */
 export async function updateClient(req: Request, res: Response) {
   const { id } = req.params;
   const {
@@ -111,7 +125,7 @@ export async function updateClient(req: Request, res: Response) {
   res.sendStatus(204);
 }
 
-/* ----------------- DELETE ----------------- */
+/* ---------------------------- DELETE ----------------------------- */
 export async function deleteClient(req: Request, res: Response) {
   await db.execute('DELETE FROM clients WHERE id = ?', [req.params.id]);
   res.sendStatus(204);
