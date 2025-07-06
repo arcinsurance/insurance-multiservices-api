@@ -17,7 +17,7 @@ export async function createClient(req: Request, res: Response) {
       return res.status(400).json({ message: 'firstName and lastName are required.' });
     }
 
-    // Reemplazar undefined por null en todos los campos opcionales
+    // Reemplazar undefined por null
     const sanitizedData = {
       assignedAgentId: data.assignedAgentId ?? null,
       firstName: data.firstName,
@@ -36,9 +36,9 @@ export async function createClient(req: Request, res: Response) {
 
     const [result] = await db.execute(
       `INSERT INTO clients (
-        agent_id, first_name, middle_name, last_name, last_name_2,
-        email, phone, date_of_birth, gender, preferred_language,
-        is_tobacco_user, is_pregnant, is_lead
+        assignedAgentId, firstName, middleName, lastName, lastName2,
+        email, phone, dateOfBirth, gender, preferredLanguage,
+        isTobaccoUser, isPregnant, isLead
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sanitizedData.assignedAgentId,
@@ -84,9 +84,9 @@ export async function updateClient(req: Request, res: Response) {
 
   await db.execute(
     `UPDATE clients SET
-      first_name = ?,  middle_name = ?, last_name = ?, last_name_2 = ?,
-      email = ?, phone = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
-      is_tobacco_user = ?, is_pregnant = ?, is_lead = ?
+      firstName = ?, middleName = ?, lastName = ?, lastName2 = ?,
+      email = ?, phone = ?, dateOfBirth = ?, gender = ?, preferredLanguage = ?,
+      isTobaccoUser = ?, isPregnant = ?, isLead = ?
      WHERE id = ?`,
     [
       firstName,
