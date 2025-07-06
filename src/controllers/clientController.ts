@@ -29,16 +29,16 @@ export async function createClient(req: Request, res: Response) {
       dateOfBirth: data.dateOfBirth ?? null,
       gender: data.gender ?? null,
       preferredLanguage: data.preferredLanguage ?? null,
-      isTobaccoUser: data.isTobaccoUser ?? false,
-      isPregnant: data.isPregnant ?? false,
-      isLead: data.isLead ?? false,
+      is_tobacco_user: data.isTobaccoUser ?? false,
+      is_pregnant: data.isPregnant ?? false,
+      is_lead: data.isLead ?? false,
     };
 
     const [result] = await db.execute(
       `INSERT INTO clients (
         assignedAgentId, firstName, middleName, lastName, lastName2,
         email, phone, dateOfBirth, gender, preferredLanguage,
-        isTobaccoUser, isPregnant, isLead
+        is_tobacco_user, is_pregnant, is_lead
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sanitizedData.assignedAgentId,
@@ -51,9 +51,9 @@ export async function createClient(req: Request, res: Response) {
         sanitizedData.dateOfBirth,
         sanitizedData.gender,
         sanitizedData.preferredLanguage,
-        sanitizedData.isTobaccoUser,
-        sanitizedData.isPregnant,
-        sanitizedData.isLead,
+        sanitizedData.is_tobacco_user,
+        sanitizedData.is_pregnant,
+        sanitizedData.is_lead,
       ]
     );
 
@@ -84,9 +84,9 @@ export async function updateClient(req: Request, res: Response) {
 
   await db.execute(
     `UPDATE clients SET
-      firstName = ?, middleName = ?, lastName = ?, lastName2 = ?,
+      firstName = ?,  middleName = ?, lastName = ?, lastName2 = ?,
       email = ?, phone = ?, dateOfBirth = ?, gender = ?, preferredLanguage = ?,
-      isTobaccoUser = ?, isPregnant = ?, isLead = ?
+      is_tobacco_user = ?, is_pregnant = ?, is_lead = ?
      WHERE id = ?`,
     [
       firstName,
