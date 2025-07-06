@@ -3,30 +3,30 @@ import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { v4 as uuidv4 } from 'uuid';
 
-/* ---------------------------- GET ALL ---------------------------- */
+/* ───────────────────────── GET ALL ───────────────────────── */
 export async function getClients(_req: Request, res: Response) {
-  const [rows] = await db.query('SELECT * FROM clients');
+  const [rows] = await db.query('SELECT * FROM clients ORDER BY date_added DESC');
   res.json(rows);
 }
 
-/* ---------------------------- CREATE ----------------------------- */
+/* ───────────────────────── CREATE ────────────────────────── */
 export async function createClient(req: Request, res: Response) {
   try {
     const data = req.body;
 
-    /* —— Validación mínima —— */
+    /* 1️⃣ Validación mínima */
     if (!data.firstName || !data.lastName) {
-      return res
-        .status(400)
-        .json({ message: 'firstName and lastName are required.' });
+      return res.status(400).json({
+        message: 'firstName and lastName are required.'
+      });
     }
 
-    /* —— Agente asignado —— */
+    /* 2️⃣ Agente asignado (opcional) */
     const agentId: string | null = data.assignedAgentId ?? null;
 
     let agentFullName: string | null = null;
     if (agentId) {
-      // ⚠️ Ajusta el nombre de tabla si NO se llama “agents”
+      // Cambia "agents" por el nombre real de tu tabla de agentes si es distinto
       const [rows] = await db.query(
         'SELECT full_name FROM agents WHERE id = ?',
         [agentId]
@@ -36,44 +36,52 @@ export async function createClient(req: Request, res: Response) {
       }
     }
 
-    /* —— Generar ID manual (evita duplicados '') —— */
+    /* 3️⃣ Generar ID manual para evitar '' duplicados */
     const id = uuidv4();
 
-    /* —— Insertar —— */
+    /* 4️⃣ Construir nombre completo */
+    const fullName = [
+      data.firstName,
+      data.middleName,
+      data.lastName,
+      data.lastName2
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    /* 5️⃣ Insertar en BBDD */
     await db.execute(
       `INSERT INTO clients (
         id,
-        agent_id, assigned_agent_full_name,
-        first_name, middle_name, last_name, last_name_2,
-        email, phone,
-        date_of_birth, gender, preferred_language,
-        is_tobacco_user, is_pregnant, is_lead,
+        agent_id,            assigned_agent_full_name,
+        first_name,          middle_name,         last_name,      last_name_2,
+        email,               phone,
+        date_of_birth,       gender,              preferred_language,
+        is_tobacco_user,     is_pregnant,         is_lead,
+        name,
         date_added
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         id,
         agentId,
         agentFullName,
-
         data.firstName,
         data.middleName ?? null,
         data.lastName,
         data.lastName2 ?? null,
-
         data.email ?? null,
         data.phone ?? null,
-
         data.dateOfBirth ?? null,
         data.gender ?? null,
         data.preferredLanguage ?? null,
-
         data.isTobaccoUser ?? false,
         data.isPregnant ?? false,
-        data.isLead ?? false
+        data.isLead ?? false,
+        fullName
       ]
     );
 
-    /* —— Respuesta —— */
+    /* 6️⃣ Respuesta */
     res.status(201).json({ id });
   } catch (err) {
     console.error('Error creating client:', err);
@@ -81,7 +89,7 @@ export async function createClient(req: Request, res: Response) {
   }
 }
 
-/* ---------------------------- UPDATE ----------------------------- */
+/* ───────────────────────── UPDATE ────────────────────────── */
 export async function updateClient(req: Request, res: Response) {
   const { id } = req.params;
   const {
@@ -99,11 +107,17 @@ export async function updateClient(req: Request, res: Response) {
     isLead
   } = req.body;
 
+  /* reconstruir nombre completo */
+  const fullName = [firstName, middleName, lastName, lastName2]
+    .filter(Boolean)
+    .join(' ');
+
   await db.execute(
     `UPDATE clients SET
-      first_name = ?,  middle_name = ?, last_name = ?, last_name_2 = ?,
-      email = ?, phone = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
-      is_tobacco_user = ?, is_pregnant = ?, is_lead = ?
+      first_name        = ?,  middle_name     = ?, last_name   = ?, last_name_2 = ?,
+      email             = ?,  phone           = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
+      is_tobacco_user   = ?,  is_pregnant     = ?, is_lead     = ?,
+      name              = ?
      WHERE id = ?`,
     [
       firstName,
@@ -118,6 +132,7 @@ export async function updateClient(req: Request, res: Response) {
       isTobaccoUser ?? false,
       isPregnant ?? false,
       isLead ?? false,
+      fullName,
       id
     ]
   );
@@ -125,7 +140,7 @@ export async function updateClient(req: Request, res: Response) {
   res.sendStatus(204);
 }
 
-/* ---------------------------- DELETE ----------------------------- */
+/* ───────────────────────── DELETE ────────────────────────── */
 export async function deleteClient(req: Request, res: Response) {
   await db.execute('DELETE FROM clients WHERE id = ?', [req.params.id]);
   res.sendStatus(204);
