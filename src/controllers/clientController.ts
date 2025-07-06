@@ -1,70 +1,62 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 
-/* ---------------------------- GET ALL ---------------------------- */
+/* ----------------- GET ALL ----------------- */
 export async function getClients(_req: Request, res: Response) {
   const [rows] = await db.query('SELECT * FROM clients');
   res.json(rows);
 }
 
-/* ---------------------------- CREATE ----------------------------- */
+/* ----------------- CREATE ------------------ */
 export async function createClient(req: Request, res: Response) {
   try {
     const data = req.body;
 
+    /* Validación mínima */
     if (!data.firstName || !data.lastName) {
       return res.status(400).json({ message: 'firstName and lastName are required.' });
     }
 
-    const agentId = data.assignedAgentId ?? null;
+    /* ---------- agente asignado & nombre ---------- */
+    const agentId: string | null = data.assignedAgentId ?? null;
 
-    let agentFullName = null;
-
+    let agentFullName: string | null = null;
     if (agentId) {
-      const [agentRows] = await db.query('SELECT fullName FROM users WHERE id = ?', [agentId]);
-      if ((agentRows as any[]).length > 0) {
-        agentFullName = (agentRows as any[])[0].fullName ?? null;
+      const [agents] = await db.query('SELECT full_name FROM users WHERE id = ?', [agentId]);
+      if ((agents as any[]).length) {
+        agentFullName = (agents as any[])[0].full_name ?? null;
       }
     }
 
-    const sanitizedData = {
-      agent_id: agentId,
-      assigned_agent_full_name: agentFullName,
-      firstName: data.firstName,
-      middleName: data.middleName ?? null,
-      lastName: data.lastName,
-      lastName2: data.lastName2 ?? null,
-      email: data.email ?? null,
-      phone: data.phone ?? null,
-      dateOfBirth: data.dateOfBirth ?? null,
-      gender: data.gender ?? null,
-      preferredLanguage: data.preferredLanguage ?? null,
-      is_tobacco_user: data.isTobaccoUser ?? false,
-      is_pregnant: data.isPregnant ?? false,
-      is_lead: data.isLead ?? false,
-    };
-
+    /* ---------- Inserción ---------- */
     const [result] = await db.execute(
       `INSERT INTO clients (
-        agent_id, assigned_agent_full_name, firstName, middleName, lastName, lastName2,
-        email, phone, dateOfBirth, gender, preferredLanguage,
-        is_tobacco_user, is_pregnant, is_lead
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        agent_id, assigned_agent_full_name,
+        first_name, middle_name, last_name, last_name_2,
+        email, phone,
+        date_of_birth, gender, preferred_language,
+        is_tobacco_user, is_pregnant, is_lead,
+        date_added
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
-        sanitizedData.agent_id,
-        sanitizedData.assigned_agent_full_name,
-        sanitizedData.firstName,
-        sanitizedData.middleName,
-        sanitizedData.lastName,
-        sanitizedData.lastName2,
-        sanitizedData.email,
-        sanitizedData.phone,
-        sanitizedData.dateOfBirth,
-        sanitizedData.gender,
-        sanitizedData.preferredLanguage,
-        sanitizedData.is_tobacco_user,
-        sanitizedData.is_pregnant,
-        sanitizedData.is_lead,
+        agentId,
+        agentFullName,
+
+        data.firstName,
+        data.middleName ?? null,
+        data.lastName,
+        data.lastName2 ?? null,
+
+        data.email ?? null,
+        data.phone ?? null,
+
+        data.dateOfBirth ?? null,
+        data.gender ?? null,
+        data.preferredLanguage ?? null,
+
+        data.isTobaccoUser ?? false,
+        data.isPregnant ?? false,
+        data.isLead ?? false
       ]
     );
 
@@ -75,7 +67,7 @@ export async function createClient(req: Request, res: Response) {
   }
 }
 
-/* ---------------------------- UPDATE ----------------------------- */
+/* ----------------- UPDATE ----------------- */
 export async function updateClient(req: Request, res: Response) {
   const { id } = req.params;
   const {
@@ -90,13 +82,13 @@ export async function updateClient(req: Request, res: Response) {
     preferredLanguage,
     isTobaccoUser,
     isPregnant,
-    isLead,
+    isLead
   } = req.body;
 
   await db.execute(
     `UPDATE clients SET
-      firstName = ?, middleName = ?, lastName = ?, lastName2 = ?,
-      email = ?, phone = ?, dateOfBirth = ?, gender = ?, preferredLanguage = ?,
+      first_name = ?,  middle_name = ?, last_name = ?, last_name_2 = ?,
+      email = ?, phone = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
       is_tobacco_user = ?, is_pregnant = ?, is_lead = ?
      WHERE id = ?`,
     [
@@ -112,15 +104,15 @@ export async function updateClient(req: Request, res: Response) {
       isTobaccoUser ?? false,
       isPregnant ?? false,
       isLead ?? false,
-      id,
+      id
     ]
   );
+
   res.sendStatus(204);
 }
 
-/* ---------------------------- DELETE ----------------------------- */
+/* ----------------- DELETE ----------------- */
 export async function deleteClient(req: Request, res: Response) {
-  const { id } = req.params;
-  await db.execute('DELETE FROM clients WHERE id = ?', [id]);
+  await db.execute('DELETE FROM clients WHERE id = ?', [req.params.id]);
   res.sendStatus(204);
 }
