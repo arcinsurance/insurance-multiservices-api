@@ -10,43 +10,29 @@ export async function getClients(_req: Request, res: Response) {
 /* ---------------------------- CREATE ----------------------------- */
 export async function createClient(req: Request, res: Response) {
   try {
-    const {
-      assignedAgentId,
-      firstName,
-      middleName,
-      lastName,
-      lastName2,
-      email,
-      phone,
-      dateOfBirth,
-      gender,
-      preferredLanguage,
-      isTobaccoUser = false,
-      isPregnant   = false,
-      isLead       = false,
-    } = req.body;
+    const data = req.body;
 
-    /*  ⚠️  Validaciones mínimas  */
-    if (!firstName || !lastName) {
+    // Validación mínima
+    if (!data.firstName || !data.lastName) {
       return res.status(400).json({ message: 'firstName and lastName are required.' });
     }
 
-    /*  Reemplazar undefined → null  */
-    const params = [
-      assignedAgentId || null,
-      firstName,
-      middleName       ?? null,
-      lastName,
-      lastName2        ?? null,
-      email            ?? null,
-      phone            ?? null,
-      dateOfBirth      ?? null,
-      gender           ?? null,
-      preferredLanguage?? null,
-      isTobaccoUser,
-      isPregnant,
-      isLead,
-    ];
+    // Reemplazar undefined por null en todos los campos opcionales
+    const sanitizedData = {
+      assignedAgentId: data.assignedAgentId ?? null,
+      firstName: data.firstName,
+      middleName: data.middleName ?? null,
+      lastName: data.lastName,
+      lastName2: data.lastName2 ?? null,
+      email: data.email ?? null,
+      phone: data.phone ?? null,
+      dateOfBirth: data.dateOfBirth ?? null,
+      gender: data.gender ?? null,
+      preferredLanguage: data.preferredLanguage ?? null,
+      isTobaccoUser: data.isTobaccoUser ?? false,
+      isPregnant: data.isPregnant ?? false,
+      isLead: data.isLead ?? false,
+    };
 
     const [result] = await db.execute(
       `INSERT INTO clients (
@@ -54,7 +40,21 @@ export async function createClient(req: Request, res: Response) {
         email, phone, date_of_birth, gender, preferred_language,
         is_tobacco_user, is_pregnant, is_lead
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      params
+      [
+        sanitizedData.assignedAgentId,
+        sanitizedData.firstName,
+        sanitizedData.middleName,
+        sanitizedData.lastName,
+        sanitizedData.lastName2,
+        sanitizedData.email,
+        sanitizedData.phone,
+        sanitizedData.dateOfBirth,
+        sanitizedData.gender,
+        sanitizedData.preferredLanguage,
+        sanitizedData.isTobaccoUser,
+        sanitizedData.isPregnant,
+        sanitizedData.isLead,
+      ]
     );
 
     res.status(201).json({ id: (result as any).insertId });
@@ -89,9 +89,18 @@ export async function updateClient(req: Request, res: Response) {
       is_tobacco_user = ?, is_pregnant = ?, is_lead = ?
      WHERE id = ?`,
     [
-      firstName, middleName ?? null, lastName, lastName2 ?? null,
-      email ?? null, phone ?? null, dateOfBirth ?? null, gender ?? null, preferredLanguage ?? null,
-      isTobaccoUser ?? false, isPregnant ?? false, isLead ?? false,
+      firstName,
+      middleName ?? null,
+      lastName,
+      lastName2 ?? null,
+      email ?? null,
+      phone ?? null,
+      dateOfBirth ?? null,
+      gender ?? null,
+      preferredLanguage ?? null,
+      isTobaccoUser ?? false,
+      isPregnant ?? false,
+      isLead ?? false,
       id,
     ]
   );
