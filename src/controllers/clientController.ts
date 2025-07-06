@@ -19,7 +19,7 @@ export async function createClient(req: Request, res: Response) {
 
     // Reemplazar undefined por null
     const sanitizedData = {
-      assignedAgentId: data.assignedAgentId ?? null,
+      agent_id: data.assignedAgentId ?? null, // <- CORRECTO SEGÚN BASE DE DATOS
       firstName: data.firstName,
       middleName: data.middleName ?? null,
       lastName: data.lastName,
@@ -36,12 +36,12 @@ export async function createClient(req: Request, res: Response) {
 
     const [result] = await db.execute(
       `INSERT INTO clients (
-        assignedAgentId, firstName, middleName, lastName, lastName2,
+        agent_id, firstName, middleName, lastName, lastName2,
         email, phone, dateOfBirth, gender, preferredLanguage,
         is_tobacco_user, is_pregnant, is_lead
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        sanitizedData.assignedAgentId,
+        sanitizedData.agent_id,
         sanitizedData.firstName,
         sanitizedData.middleName,
         sanitizedData.lastName,
