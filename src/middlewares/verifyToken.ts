@@ -1,32 +1,24 @@
-// src/middlewares/verifyToken.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-interface JwtPayload {
-  id: string;
-  email: string;
-  role: string;
-}
+export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
 
-export interface AuthenticatedRequest extends Request {
-  user?: JwtPayload;
-}
-
-export const verifyToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader) {
     return res.status(401).json({ error: 'Token no proporcionado' });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(' ')[1]; // ✅ obtiene el token después de "Bearer"
+
+  if (!token) {
+    return res.status(401).json({ error: 'Formato de token inválido' });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
     req.user = decoded;
     next();
-  } catch (error) {
-    console.error('Token inválido:', error);
-    return res.status(401).json({ error: 'Token inválido' });
+  } catch (err) {
+    return res.status(403).json({ error: 'Token inválido o expirado' });
   }
 };
