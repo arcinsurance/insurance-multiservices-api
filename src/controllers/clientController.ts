@@ -12,14 +12,24 @@ export async function createClient(req: Request, res: Response) {
   try {
     const data = req.body;
 
-    // Validación mínima
     if (!data.firstName || !data.lastName) {
       return res.status(400).json({ message: 'firstName and lastName are required.' });
     }
 
-    // Reemplazar undefined por null
+    const agentId = data.assignedAgentId ?? null;
+
+    let agentFullName = null;
+
+    if (agentId) {
+      const [agentRows] = await db.query('SELECT fullName FROM users WHERE id = ?', [agentId]);
+      if ((agentRows as any[]).length > 0) {
+        agentFullName = (agentRows as any[])[0].fullName ?? null;
+      }
+    }
+
     const sanitizedData = {
-      agent_id: data.assignedAgentId ?? null, // <- CORRECTO SEGÚN BASE DE DATOS
+      agent_id: agentId,
+      assigned_agent_full_name: agentFullName,
       firstName: data.firstName,
       middleName: data.middleName ?? null,
       lastName: data.lastName,
@@ -36,12 +46,13 @@ export async function createClient(req: Request, res: Response) {
 
     const [result] = await db.execute(
       `INSERT INTO clients (
-        agent_id, firstName, middleName, lastName, lastName2,
+        agent_id, assigned_agent_full_name, firstName, middleName, lastName, lastName2,
         email, phone, dateOfBirth, gender, preferredLanguage,
         is_tobacco_user, is_pregnant, is_lead
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sanitizedData.agent_id,
+        sanitizedData.assigned_agent_full_name,
         sanitizedData.firstName,
         sanitizedData.middleName,
         sanitizedData.lastName,
@@ -84,7 +95,7 @@ export async function updateClient(req: Request, res: Response) {
 
   await db.execute(
     `UPDATE clients SET
-      firstName = ?,  middleName = ?, lastName = ?, lastName2 = ?,
+      firstName = ?, middleName = ?, lastName = ?, lastName2 = ?,
       email = ?, phone = ?, dateOfBirth = ?, gender = ?, preferredLanguage = ?,
       is_tobacco_user = ?, is_pregnant = ?, is_lead = ?
      WHERE id = ?`,
