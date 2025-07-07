@@ -1,9 +1,8 @@
 import express from 'express';
-import { sendMessage, getMessages } from '../controllers/messageController';
+import { sendMessage } from '../controllers/messageController';
 
 const router = express.Router();
 
-router.post('/', sendMessage); // Para enviar un nuevo mensaje
-router.get('/', getMessages);  // Para obtener el historial
+router.post('/', sendMessage);
 
 export default router;
