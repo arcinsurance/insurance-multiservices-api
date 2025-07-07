@@ -2,12 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
+/* ───────────── Rutas ───────────── */
 import clientRoutes from './routes/clients';
 import agentRoutes from './routes/agents';
 import authRoutes from './routes/auth';
-import productCategoryRoutes from './routes/productCategories'; // ➜ Rutas de categorías
-import changePasswordRoute from './routes/changePassword'; // ✅ NUEVA ruta para cambiar contraseña
-import policyRoutes from './routes/policies'; // ✅ Ruta para pólizas agregada
+import changePasswordRoute from './routes/changePassword';
+import productCategoryRoutes from './routes/productCategories';
+import policyRoutes from './routes/policies';
+import documentRoutes from './routes/documents'; // ✅ NUEVA ruta de documentos
 
 import { db } from './config/db';
 
@@ -45,7 +47,8 @@ app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/auth', changePasswordRoute);
 app.use('/api/product-categories', productCategoryRoutes);
-app.use('/api/policies', policyRoutes); // ✅ Nueva ruta registrada aquí
+app.use('/api/policies', policyRoutes);
+app.use('/api/documents', documentRoutes); // ✅ REGISTRADA AQUÍ
 
 /* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
