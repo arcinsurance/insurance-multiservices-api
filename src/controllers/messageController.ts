@@ -5,6 +5,9 @@ import { db } from '../config/db';
 // 📤 Enviar un mensaje
 export const sendMessage = async (req: Request, res: Response) => {
   try {
+    // Mostrar qué se recibe
+    console.log('📥 Body recibido por el backend:', req.body);
+
     const {
       recipientId,
       recipientType,
@@ -14,12 +17,13 @@ export const sendMessage = async (req: Request, res: Response) => {
       senderId,
     } = req.body;
 
-    // Validación básica
-    if (!recipientId || !recipientType || !content || !type || !senderId) {
-      return res.status(400).json({ error: 'Faltan campos requeridos' });
-    }
+    // Validación detallada para saber exactamente qué falta
+    if (!recipientId) return res.status(400).json({ error: 'Falta recipientId' });
+    if (!recipientType) return res.status(400).json({ error: 'Falta recipientType' });
+    if (!content) return res.status(400).json({ error: 'Falta content' });
+    if (!type) return res.status(400).json({ error: 'Falta type' });
+    if (!senderId) return res.status(400).json({ error: 'Falta senderId' });
 
-    // Asegurar que ningún valor sea undefined
     const values = [
       recipientId ?? null,
       recipientType ?? null,
