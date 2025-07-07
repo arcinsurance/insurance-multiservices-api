@@ -9,7 +9,8 @@ import authRoutes from './routes/auth';
 import changePasswordRoute from './routes/changePassword';
 import productCategoryRoutes from './routes/productCategories';
 import policyRoutes from './routes/policies';
-import documentRoutes from './routes/documents'; // ✅ NUEVA ruta de documentos
+import documentRoutes from './routes/documents'; // ✅ Ruta de documentos
+import messageRoutes from './routes/messages';   // ✅ Ruta de mensajes NUEVA
 
 import { db } from './config/db';
 
@@ -48,7 +49,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auth', changePasswordRoute);
 app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/policies', policyRoutes);
-app.use('/api/documents', documentRoutes); // ✅ REGISTRADA AQUÍ
+app.use('/api/documents', documentRoutes);     // ✅ Documentos
+app.use('/api/messages', messageRoutes);       // ✅ Mensajes
 
 /* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
