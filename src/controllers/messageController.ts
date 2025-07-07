@@ -17,8 +17,18 @@ export const sendMessage = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
-    // Usar null en lugar de undefined si falta algún valor opcional
-    const safeSubject = subject ?? null;
+    // Asegurar que ningún valor sea undefined
+    const values = [
+      recipientId ?? null,
+      recipientType ?? null,
+      subject ?? null,
+      content ?? null,
+      type ?? null,
+      senderId ?? null,
+      'enviado'
+    ];
+
+    console.log('📨 Insertando mensaje con valores:', values);
 
     await db.execute(
       `INSERT INTO messages (
@@ -31,15 +41,7 @@ export const sendMessage = async (req: Request, res: Response) => {
         sent_date,
         status
       ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
-      [
-        recipientId,
-        recipientType,
-        safeSubject,
-        content,
-        type,
-        senderId,
-        'enviado'
-      ]
+      values
     );
 
     return res.status(201).json({ message: 'Mensaje enviado correctamente' });
