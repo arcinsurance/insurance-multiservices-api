@@ -2,40 +2,57 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 
-// 📤 Enviar un mensaje
+/* -------------------------------------------------------------------------- */
+/*                       CONTROLADOR  :  ENVIAR  MENSAJE                       */
+/* -------------------------------------------------------------------------- */
 export const sendMessage = async (req: Request, res: Response) => {
   try {
-    // Mostrar qué se recibe
+    /* 1️⃣  LOG de depuración: ver exactamente qué llega */
     console.log('📥 Body recibido por el backend:', req.body);
 
     const {
       recipientId,
+      recipientType, // debe ser 'client' o 'agent'
+      subject,       // opcional
+      content,       // obligatorio
+      type,          // por ahora aceptamos solo 'EMAIL'
+      senderId,      // id del usuario que envía
+    } = req.body;
+
+    /* 2️⃣  Validaciones con respuesta detallada */
+    if (!recipientId)
+      return res.status(400).json({ error: 'Falta recipientId' });
+
+    if (!recipientType || !['client', 'agent'].includes(recipientType))
+      return res.status(400).json({
+        error: 'recipientType inválido (debe ser "client" o "agent")',
+      });
+
+    if (!content || content.trim() === '')
+      return res.status(400).json({ error: 'Falta content' });
+
+    if (!type || type !== 'EMAIL')
+      return res
+        .status(400)
+        .json({ error: 'type inválido (por ahora debe ser "EMAIL")' });
+
+    if (!senderId)
+      return res.status(400).json({ error: 'Falta senderId' });
+
+    /* 3️⃣  Construimos array de valores (en el mismo orden del INSERT) */
+    const values = [
+      recipientId,
       recipientType,
-      subject,
+      subject || null, // si no hay asunto enviamos NULL
       content,
       type,
       senderId,
-    } = req.body;
-
-    // Validación detallada para saber exactamente qué falta
-    if (!recipientId) return res.status(400).json({ error: 'Falta recipientId' });
-    if (!recipientType) return res.status(400).json({ error: 'Falta recipientType' });
-    if (!content) return res.status(400).json({ error: 'Falta content' });
-    if (!type) return res.status(400).json({ error: 'Falta type' });
-    if (!senderId) return res.status(400).json({ error: 'Falta senderId' });
-
-    const values = [
-      recipientId ?? null,
-      recipientType ?? null,
-      subject ?? null,
-      content ?? null,
-      type ?? null,
-      senderId ?? null,
-      'enviado',
+      'enviado',       // status inicial
     ];
 
     console.log('📨 Insertando mensaje con valores:', values);
 
+    /* 4️⃣  Ejecutamos el INSERT */
     await db.execute(
       `INSERT INTO messages (
         recipient_id,
@@ -50,14 +67,21 @@ export const sendMessage = async (req: Request, res: Response) => {
       values
     );
 
-    return res.status(201).json({ message: 'Mensaje enviado correctamente' });
+    /* 5️⃣  Todo OK */
+    return res
+      .status(201)
+      .json({ message: 'Mensaje enviado correctamente' });
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error);
-    return res.status(500).json({ error: 'Error interno del servidor' });
+    return res
+      .status(500)
+      .json({ error: 'Error interno del servidor' });
   }
 };
 
-// 📥 Obtener todos los mensajes (historial)
+/* -------------------------------------------------------------------------- */
+/*                       CONTROLADOR : OBTENER MENSAJES                       */
+/* -------------------------------------------------------------------------- */
 export const getMessages = async (_req: Request, res: Response) => {
   try {
     const [rows] = await db.execute(
@@ -66,6 +90,8 @@ export const getMessages = async (_req: Request, res: Response) => {
     return res.status(200).json(rows);
   } catch (error) {
     console.error('❌ Error al obtener mensajes:', error);
-    return res.status(500).json({ error: 'Error al obtener mensajes' });
+    return res
+      .status(500)
+      .json({ error: 'Error interno del servidor' });
   }
 };
