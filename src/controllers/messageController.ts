@@ -108,7 +108,27 @@ export const sendMessage = async (req: Request, res: Response) => {
       await sendSystemMessageEmail(recipientEmail, subject, content);
     }
 
-    return res.status(201).json({ message: 'Mensaje enviado correctamente' });
+    /* 5️⃣ Devolver mensaje recién creado para el historial */
+    const [result]: any = await db.execute(
+      `SELECT 
+         m.*, 
+         CASE 
+           WHEN m.recipient_type = 'client' THEN c.full_name 
+           WHEN m.recipient_type = 'agent' THEN a.full_name 
+           ELSE NULL 
+         END AS recipientName,
+         s.full_name AS senderName
+       FROM messages m
+       LEFT JOIN clients c ON m.recipient_type = 'client' AND m.recipient_id = c.id
+       LEFT JOIN agents  a ON m.recipient_type = 'agent'  AND m.recipient_id = a.id
+       LEFT JOIN agents  s ON m.sender_id = s.id
+       WHERE m.recipient_id = ? AND m.sender_id = ? AND m.sent_date IS NOT NULL
+       ORDER BY m.sent_date DESC LIMIT 1`,
+      [recipientId, senderId]
+    );
+
+    return res.status(201).json(result[0]);
+
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
@@ -120,18 +140,15 @@ export const sendMessage = async (req: Request, res: Response) => {
 /* -------------------------------------------------------------------------- */
 export const getMessages = async (_req: Request, res: Response) => {
   try {
-    /* Incluimos recipientName y senderName para que el frontend lo use */
     const [rows] = await db.execute(
       `
       SELECT 
         m.*,
-        -- Nombre del destinatario
         CASE
           WHEN m.recipient_type = 'client' THEN c.full_name
           WHEN m.recipient_type = 'agent'  THEN a.full_name
           ELSE NULL
         END AS recipientName,
-        -- Nombre del remitente (agente)
         s.full_name AS senderName
       FROM messages m
       LEFT JOIN clients c ON m.recipient_type = 'client' AND m.recipient_id = c.id
