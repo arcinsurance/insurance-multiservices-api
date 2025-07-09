@@ -1,3 +1,20 @@
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// ✅ Transporter: configuración SMTP
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+// ✅ Función para enviar correos del sistema (mensajes entre usuarios)
 export const sendSystemMessageEmail = async (
   recipientEmail: string,
   subject: string,
@@ -39,6 +56,6 @@ export const sendSystemMessageEmail = async (
     console.log(`📧 Email enviado con éxito a ${recipientEmail} con asunto "${subject}"`);
   } catch (error) {
     console.error(`❌ Error al enviar correo a ${recipientEmail}:`, error);
-    throw error; // importante para que el controlador capture y responda si falla
+    throw error;
   }
 };
