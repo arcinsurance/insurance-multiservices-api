@@ -193,4 +193,29 @@ export const signDocument = async (req: Request, res: Response) => {
     console.error('❌ Error al firmar documento:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
+  export const getSentDocuments = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const [rows]: any = await db.execute(
+      `
+      SELECT sd.id, sd.status, sd.created_at, sd.signed_at,
+             c.name AS client_name,
+             dt.name AS template_name
+      FROM signed_documents sd
+      JOIN clients c ON sd.client_id = c.id
+      JOIN document_templates dt ON sd.template_id = dt.id
+      WHERE sd.sent_by_id = ?
+      ORDER BY sd.created_at DESC
+      `,
+      [userId]
+    );
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error('❌ Error al obtener historial de documentos enviados:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 };
