@@ -6,42 +6,40 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-/* -------------------------------------------------------------------------- */
-/*                       CONTROLADOR  :  ENVIAR  MENSAJE                       */
-/* -------------------------------------------------------------------------- */
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     console.log('📥 Body recibido por el backend:', req.body);
 
     const {
       recipientId,
-      recipientType, // 'client' o 'agent'
+      recipientType,
       subject,
       content,
       type,
       senderId,
     } = req.body;
 
+    // 🔒 Validaciones
     if (!recipientId)
       return res.status(400).json({ error: 'Falta recipientId' });
 
     if (!recipientType || !['client', 'agent'].includes(recipientType))
-      return res
-        .status(400)
-        .json({ error: 'recipientType inválido (debe ser "client" o "agent")' });
+      return res.status(400).json({
+        error: 'recipientType inválido (debe ser "client" o "agent")',
+      });
 
     if (!content || content.trim() === '')
       return res.status(400).json({ error: 'Falta content' });
 
     if (!type || type !== 'EMAIL')
-      return res
-        .status(400)
-        .json({ error: 'type inválido (por ahora debe ser "EMAIL")' });
+      return res.status(400).json({
+        error: 'type inválido (por ahora debe ser "EMAIL")',
+      });
 
     if (!senderId)
       return res.status(400).json({ error: 'Falta senderId' });
 
-    /* 1️⃣ Consultar correo del destinatario */
+    // 🔍 Buscar correo del destinatario
     const table = recipientType === 'client' ? 'clients' : 'users';
     const [rows]: any = await db.execute(
       `SELECT email FROM ${table} WHERE id = ?`,
@@ -53,23 +51,26 @@ export const sendMessage = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Correo electrónico no encontrado' });
     }
 
-    /* 2️⃣ Configurar y enviar correo */
+    // 📧 Configurar transportador de Nodemailer
     const transporter = nodemailer.createTransport({
-      service: 'Gmail',
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: Number(process.env.SMTP_PORT) === 465, // true para 465, false para 587
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
       },
     });
 
+    // 📨 Enviar correo
     await transporter.sendMail({
-      from: `"Insurance Multiservices" <${process.env.EMAIL_USER}>`,
+      from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
       to: recipientEmail,
       subject: subject || 'Sin asunto',
       text: content,
     });
 
-    /* 3️⃣ Guardar en la base de datos */
+    // 🗃️ Guardar mensaje en la base de datos
     const values = [
       recipientId,
       recipientType,
@@ -103,9 +104,6 @@ export const sendMessage = async (req: Request, res: Response) => {
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                       CONTROLADOR : OBTENER MENSAJES                       */
-/* -------------------------------------------------------------------------- */
 export const getMessages = async (_req: Request, res: Response) => {
   try {
     const [rows] = await db.execute(
