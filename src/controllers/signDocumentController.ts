@@ -13,30 +13,33 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const { clientId, templateId, sentById } = req.body;
 
     if (!clientId || !templateId || !sentById) {
-      return res.status(400).json({ error: 'Faltan clientId, templateId o sentById' });
+      return res
+        .status(400)
+        .json({ error: 'Faltan clientId, templateId o sentById' });
     }
 
+    /* ── Obtener cliente ─────────────────────────────────────────────── */
     const [clientRows]: any = await db.execute(
       'SELECT id, name, email FROM clients WHERE id = ? LIMIT 1',
       [clientId]
     );
-    if (clientRows.length === 0) {
+    if (clientRows.length === 0)
       return res.status(404).json({ error: 'Cliente no encontrado' });
-    }
     const client = clientRows[0];
 
+    /* ── Obtener plantilla ───────────────────────────────────────────── */
     const [templateRows]: any = await db.execute(
       'SELECT id, content, name FROM document_templates WHERE id = ? LIMIT 1',
       [templateId]
     );
-    if (templateRows.length === 0) {
+    if (templateRows.length === 0)
       return res.status(404).json({ error: 'Plantilla no encontrada' });
-    }
     const template = templateRows[0];
 
+    /* ── Insertar documento pendiente ────────────────────────────────── */
     const [result]: any = await db.execute(
       `INSERT INTO signed_documents
-       (client_id, template_id, content, sent_by_id, status, created_at)
+         (client_id, template_id, content, sent_by_id, status, created_at)
        VALUES (?, ?, ?, ?, 'pendiente', NOW())`,
       [clientId, templateId, template.content, sentById]
     );
@@ -44,12 +47,23 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const documentId = result.insertId;
     const signLink = `${FRONTEND_URL}/firmar/${documentId}`;
 
-    const subject = `Tu agente te envió un documento para firmar`;
-    const body = `Hola ${client.name},\n\nTe han enviado un documento para firma. Haz clic en el siguiente enlace para firmarlo:\n\n${signLink}\n\nGracias.`;
+    /* ── Enviar correo al cliente con el enlace de firma ─────────────── */
+    const subject = 'Documento pendiente de firma';
+    const body = `Hola ${client.name},
+
+Se ha generado un documento que requiere tu firma electrónica.
+
+Documento: ${template.name}
+Enlace para firmar: ${signLink}
+
+Muchas gracias.`;
 
     await sendEmail(client.email, subject, body);
 
-    return res.status(201).json({ message: 'Documento enviado y correo enviado correctamente' });
+    return res.status(201).json({
+      message: 'Documento enviado y correo enviado correctamente',
+      documentId, // se devuelve para uso opcional del frontend
+    });
   } catch (error) {
     console.error('❌ Error al enviar documento para firma:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
