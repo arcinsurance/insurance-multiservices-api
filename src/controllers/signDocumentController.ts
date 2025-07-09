@@ -1,4 +1,3 @@
-// src/controllers/signDocumentController.ts
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 
@@ -10,9 +9,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const { clientId, templateId, sentById } = req.body;
 
     if (!clientId || !templateId || !sentById) {
-      return res
-        .status(400)
-        .json({ error: 'Faltan clientId, templateId o sentById' });
+      return res.status(400).json({ error: 'Faltan clientId, templateId o sentById' });
     }
 
     // Validar cliente
@@ -35,17 +32,20 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
 
     const content = templateRows[0].content;
 
-    // Insertar documento pendiente
-    await db.execute(
+    // Insertar documento pendiente y obtener ID insertado
+    const [result]: any = await db.execute(
       `INSERT INTO signed_documents
        (client_id, template_id, content, sent_by_id, status, created_at)
        VALUES (?, ?, ?, ?, 'pendiente', NOW())`,
       [clientId, templateId, content, sentById]
     );
 
-    return res
-      .status(201)
-      .json({ message: 'Documento enviado para firma correctamente' });
+    const insertedId = result.insertId;
+
+    return res.status(201).json({
+      message: 'Documento enviado para firma correctamente',
+      documentId: insertedId,
+    });
   } catch (error) {
     console.error('❌ Error al enviar documento para firma:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
@@ -85,9 +85,7 @@ export const signDocument = async (req: Request, res: Response) => {
     const { documentId, fileUrl } = req.body;
 
     if (!documentId || !fileUrl) {
-      return res
-        .status(400)
-        .json({ error: 'Faltan documentId o fileUrl' });
+      return res.status(400).json({ error: 'Faltan documentId o fileUrl' });
     }
 
     await db.execute(
@@ -97,9 +95,7 @@ export const signDocument = async (req: Request, res: Response) => {
       [fileUrl, documentId]
     );
 
-    return res
-      .status(200)
-      .json({ message: 'Documento firmado exitosamente' });
+    return res.status(200).json({ message: 'Documento firmado exitosamente' });
   } catch (error) {
     console.error('❌ Error al firmar documento:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
