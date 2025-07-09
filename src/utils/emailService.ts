@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 });
 
 /* -------------------------------------------------------------------------- */
-/* ✅ 1. Enviar mensaje del sistema a clientes o agentes                      */
+/* ✅ 1. Enviar mensaje del sistema a agentes                                 */
 /* -------------------------------------------------------------------------- */
 export const sendSystemMessageEmail = async (
   recipientEmail: string,
@@ -38,13 +38,6 @@ export const sendSystemMessageEmail = async (
           <p style="margin: 0;"><strong>Asunto:</strong> ${subject}</p>
           <p style="margin-top: 10px;">${content.replace(/\n/g, '<br/>')}</p>
         </div>
-
-        <p>Puedes acceder al sistema para más detalles:</p>
-
-        <p>
-          👉 <a href="https://crm.insurancemultiservices.com" style="color: #0055a5; text-decoration: none;" target="_blank">
-          Ir al CRM</a>
-        </p>
 
         <p style="margin-top: 30px;">Saludos,<br/><strong>Equipo de Insurance Multiservices</strong></p>
         <hr style="margin-top: 40px;" />
@@ -95,6 +88,40 @@ export const sendAgentWelcomeEmail = async (
     console.log(`📧 Correo de bienvenida enviado a ${email}`);
   } catch (error) {
     console.error(`❌ Error al enviar correo de bienvenida a ${email}:`, error);
+    throw error;
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* ✅ 3. Enviar mensaje simple a un cliente con firma del agente             */
+/* -------------------------------------------------------------------------- */
+export const sendClientMessageEmail = async (
+  recipientEmail: string,
+  subject: string,
+  content: string,
+  senderName: string
+) => {
+  const mailOptions = {
+    from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
+    to: recipientEmail,
+    subject,
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <p>${content.replace(/\n/g, '<br/>')}</p>
+        <br />
+        <p style="margin-top: 40px;">Saludos cordiales,</p>
+        <p><strong>${senderName}</strong><br/>Insurance Multiservices</p>
+        <hr style="margin-top: 40px;" />
+        <p style="font-size: 12px; color: #999;">Este mensaje fue enviado automáticamente desde nuestro sistema.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Mensaje enviado al cliente ${recipientEmail} por ${senderName}`);
+  } catch (error) {
+    console.error(`❌ Error al enviar mensaje al cliente ${recipientEmail}:`, error);
     throw error;
   }
 };
