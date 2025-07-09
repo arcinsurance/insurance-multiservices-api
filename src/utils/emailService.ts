@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Transporter SMTP
+// 📦 Configuración del transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '465'),
@@ -14,36 +14,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 📧 Correo de bienvenida al agente
-export const sendAgentWelcomeEmail = async (
-  email: string,
-  fullName: string,
-  tempPassword: string
-) => {
-  const mailOptions = {
-    from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject: 'Bienvenido al CRM de Insurance Multiservices',
-    html: `
-      <h2>Hola ${fullName},</h2>
-      <p>Te damos la bienvenida a nuestra plataforma CRM.</p>
-      <p><strong>Tu usuario:</strong> ${email}</p>
-      <p><strong>Tu contraseña temporal:</strong> ${tempPassword}</p>
-      <p>Este enlace te lleva directamente al sistema: 
-        <a href="https://crm.insurancemultiservices.com" target="_blank">
-          crm.insurancemultiservices.com
-        </a>
-      </p>
-      <p><strong>Importante:</strong> Esta contraseña temporal expirará en 24 horas. Te pediremos que la cambies al iniciar sesión.</p>
-      <br/>
-      <p>Saludos,<br>Equipo de Insurance Multiservices</p>
-    `,
-  };
-
-  await transporter.sendMail(mailOptions);
-};
-
-// 📩 Correo del sistema para mensajes enviados
+/* -------------------------------------------------------------------------- */
+/* ✅ 1. Enviar mensaje del sistema a clientes o agentes                      */
+/* -------------------------------------------------------------------------- */
 export const sendSystemMessageEmail = async (
   recipientEmail: string,
   subject: string,
@@ -85,6 +58,43 @@ export const sendSystemMessageEmail = async (
     console.log(`📧 Email enviado con éxito a ${recipientEmail} con asunto "${subject}"`);
   } catch (error) {
     console.error(`❌ Error al enviar correo a ${recipientEmail}:`, error);
+    throw error;
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* ✅ 2. Enviar correo de bienvenida al agente recién creado                 */
+/* -------------------------------------------------------------------------- */
+export const sendAgentWelcomeEmail = async (
+  email: string,
+  fullName: string,
+  tempPassword: string
+) => {
+  const mailOptions = {
+    from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: 'Bienvenido al CRM de Insurance Multiservices',
+    html: `
+      <h2>Hola ${fullName},</h2>
+      <p>Te damos la bienvenida a nuestra plataforma CRM.</p>
+      <p><strong>Tu usuario:</strong> ${email}</p>
+      <p><strong>Tu contraseña temporal:</strong> ${tempPassword}</p>
+      <p>Este enlace te lleva directamente al sistema: 
+        <a href="https://crm.insurancemultiservices.com" target="_blank">
+          crm.insurancemultiservices.com
+        </a>
+      </p>
+      <p><strong>Importante:</strong> Esta contraseña temporal expirará en 24 horas. Te pediremos que la cambies al iniciar sesión.</p>
+      <br/>
+      <p>Saludos,<br>Equipo de Insurance Multiservices</p>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Correo de bienvenida enviado a ${email}`);
+  } catch (error) {
+    console.error(`❌ Error al enviar correo de bienvenida a ${email}:`, error);
     throw error;
   }
 };
