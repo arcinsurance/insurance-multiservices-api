@@ -1,11 +1,11 @@
 // src/controllers/messageController.ts
 import { Request, Response } from 'express';
 import { db } from '../config/db';
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
+import { sendSystemMessageEmail } from '../utils/emailService';
 
-dotenv.config();
-
+/* -------------------------------------------------------------------------- */
+/*                           CONTROLADOR: ENVIAR MENSAJE                      */
+/* -------------------------------------------------------------------------- */
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     console.log('📥 Body recibido por el backend:', req.body);
@@ -19,7 +19,7 @@ export const sendMessage = async (req: Request, res: Response) => {
       senderId,
     } = req.body;
 
-    // 🔒 Validaciones
+    // Validaciones
     if (!recipientId)
       return res.status(400).json({ error: 'Falta recipientId' });
 
@@ -32,45 +32,44 @@ export const sendMessage = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Falta content' });
 
     if (!type || type !== 'EMAIL')
-      return res.status(400).json({
-        error: 'type inválido (por ahora debe ser "EMAIL")',
-      });
+      return res
+        .status(400)
+        .json({ error: 'type inválido (por ahora debe ser "EMAIL")' });
 
     if (!senderId)
       return res.status(400).json({ error: 'Falta senderId' });
 
-    // 🔍 Buscar correo del destinatario
-    const table = recipientType === 'client' ? 'clients' : 'users';
-    const [rows]: any = await db.execute(
-      `SELECT email FROM ${table} WHERE id = ?`,
-      [recipientId]
-    );
+    /* ---------------------------------------------------------------------- */
+    // 1️⃣ Buscar correo electrónico del destinatario
+    let email = '';
+    let fullName = '';
 
-    const recipientEmail = rows?.[0]?.email;
-    if (!recipientEmail) {
-      return res.status(404).json({ error: 'Correo electrónico no encontrado' });
+    if (recipientType === 'client') {
+      const [rows]: any = await db.execute(
+        'SELECT id, CONCAT(first_name, " ", last_name) AS fullName, email FROM clients WHERE id = ?',
+        [recipientId]
+      );
+
+      if (!rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+      email = rows[0].email;
+      fullName = rows[0].fullName;
+    } else {
+      const [rows]: any = await db.execute(
+        'SELECT id, full_name, email FROM users WHERE id = ?',
+        [recipientId]
+      );
+
+      if (!rows.length) return res.status(404).json({ error: 'Agente no encontrado' });
+
+      email = rows[0].email;
+      fullName = rows[0].full_name;
     }
 
-    // 📧 Configurar transportador de Nodemailer
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: Number(process.env.SMTP_PORT) === 465, // true para 465, false para 587
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
+    if (!email) return res.status(400).json({ error: 'Correo electrónico no encontrado' });
 
-    // 📨 Enviar correo
-    await transporter.sendMail({
-      from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
-      to: recipientEmail,
-      subject: subject || 'Sin asunto',
-      text: content,
-    });
-
-    // 🗃️ Guardar mensaje en la base de datos
+    /* ---------------------------------------------------------------------- */
+    // 2️⃣ Insertar en base de datos
     const values = [
       recipientId,
       recipientType,
@@ -97,6 +96,10 @@ export const sendMessage = async (req: Request, res: Response) => {
       values
     );
 
+    /* ---------------------------------------------------------------------- */
+    // 3️⃣ Enviar email
+    await sendSystemMessageEmail(email, subject || 'Sin asunto', content);
+
     return res.status(201).json({ message: 'Mensaje enviado correctamente' });
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error);
@@ -104,6 +107,9 @@ export const sendMessage = async (req: Request, res: Response) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/*                      CONTROLADOR: OBTENER MENSAJES                         */
+/* -------------------------------------------------------------------------- */
 export const getMessages = async (_req: Request, res: Response) => {
   try {
     const [rows] = await db.execute(
