@@ -1,11 +1,8 @@
 // src/controllers/messageController.ts
 import { Request, Response } from 'express';
 import { db } from '../config/db';
-import { sendSystemMessageEmail } from '../utils/emailService';
+import { sendSystemMessageEmail, sendClientMessageEmail } from '../utils/emailService';
 
-/* -------------------------------------------------------------------------- */
-/*                           CONTROLADOR: ENVIAR MENSAJE                      */
-/* -------------------------------------------------------------------------- */
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     console.log('📥 Body recibido por el backend:', req.body);
@@ -19,57 +16,13 @@ export const sendMessage = async (req: Request, res: Response) => {
       senderId,
     } = req.body;
 
-    // Validaciones
-    if (!recipientId)
-      return res.status(400).json({ error: 'Falta recipientId' });
-
+    if (!recipientId) return res.status(400).json({ error: 'Falta recipientId' });
     if (!recipientType || !['client', 'agent'].includes(recipientType))
-      return res.status(400).json({
-        error: 'recipientType inválido (debe ser "client" o "agent")',
-      });
+      return res.status(400).json({ error: 'recipientType inválido (debe ser "client" o "agent")' });
+    if (!content || content.trim() === '') return res.status(400).json({ error: 'Falta content' });
+    if (!type || type !== 'EMAIL') return res.status(400).json({ error: 'type inválido (por ahora debe ser "EMAIL")' });
+    if (!senderId) return res.status(400).json({ error: 'Falta senderId' });
 
-    if (!content || content.trim() === '')
-      return res.status(400).json({ error: 'Falta content' });
-
-    if (!type || type !== 'EMAIL')
-      return res
-        .status(400)
-        .json({ error: 'type inválido (por ahora debe ser "EMAIL")' });
-
-    if (!senderId)
-      return res.status(400).json({ error: 'Falta senderId' });
-
-    /* ---------------------------------------------------------------------- */
-    // 1️⃣ Buscar correo electrónico del destinatario
-    let email = '';
-    let fullName = '';
-
-    if (recipientType === 'client') {
-      const [rows]: any = await db.execute(
-        'SELECT id, CONCAT(first_name, " ", last_name) AS fullName, email FROM clients WHERE id = ?',
-        [recipientId]
-      );
-
-      if (!rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
-
-      email = rows[0].email;
-      fullName = rows[0].fullName;
-    } else {
-      const [rows]: any = await db.execute(
-        'SELECT id, full_name, email FROM users WHERE id = ?',
-        [recipientId]
-      );
-
-      if (!rows.length) return res.status(404).json({ error: 'Agente no encontrado' });
-
-      email = rows[0].email;
-      fullName = rows[0].full_name;
-    }
-
-    if (!email) return res.status(400).json({ error: 'Correo electrónico no encontrado' });
-
-    /* ---------------------------------------------------------------------- */
-    // 2️⃣ Insertar en base de datos
     const values = [
       recipientId,
       recipientType,
@@ -96,20 +49,50 @@ export const sendMessage = async (req: Request, res: Response) => {
       values
     );
 
-    /* ---------------------------------------------------------------------- */
-    // 3️⃣ Enviar email
-    await sendSystemMessageEmail(email, subject || 'Sin asunto', content);
+    // 🔍 Buscar email del destinatario
+    let recipientEmail: string | null = null;
+    let senderName: string | null = null;
+
+    if (recipientType === 'client') {
+      const [rows]: any = await db.execute(
+        `SELECT email FROM clients WHERE id = ? LIMIT 1`,
+        [recipientId]
+      );
+      if (rows.length > 0) recipientEmail = rows[0].email;
+    } else if (recipientType === 'agent') {
+      const [rows]: any = await db.execute(
+        `SELECT email FROM agents WHERE id = ? LIMIT 1`,
+        [recipientId]
+      );
+      if (rows.length > 0) recipientEmail = rows[0].email;
+    }
+
+    // 🔍 Buscar nombre del agente remitente
+    const [senderRows]: any = await db.execute(
+      `SELECT full_name FROM agents WHERE id = ? LIMIT 1`,
+      [senderId]
+    );
+    if (senderRows.length > 0) senderName = senderRows[0].full_name;
+
+    if (!recipientEmail) {
+      return res.status(404).json({ error: `${recipientType === 'agent' ? 'Agente' : 'Cliente'} no encontrado` });
+    }
+
+    // ✉️ Enviar email con estilo diferente según tipo
+    if (recipientType === 'client') {
+      await sendClientMessageEmail(recipientEmail, subject, content, senderName || 'Un agente de nuestro equipo');
+    } else {
+      await sendSystemMessageEmail(recipientEmail, subject, content);
+    }
 
     return res.status(201).json({ message: 'Mensaje enviado correctamente' });
+
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
-/* -------------------------------------------------------------------------- */
-/*                      CONTROLADOR: OBTENER MENSAJES                         */
-/* -------------------------------------------------------------------------- */
 export const getMessages = async (_req: Request, res: Response) => {
   try {
     const [rows] = await db.execute(
