@@ -1,32 +1,31 @@
-// src/index.ts
-import express        from 'express';
-import cors           from 'cors';
-import dotenv         from 'dotenv';
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
-/* ───────────── Rutas ───────────── */
-import clientRoutes          from './routes/clients';
-import agentRoutes           from './routes/agents';
-import authRoutes            from './routes/auth';
-import changePasswordRoute   from './routes/changePassword';
+import clientRoutes from './routes/clients';
+import agentRoutes from './routes/agents';
+import authRoutes from './routes/auth';
+import changePasswordRoute from './routes/changePassword';
 import productCategoryRoutes from './routes/productCategories';
-import policyRoutes          from './routes/policies';
-import documentRoutes        from './routes/documents';
-import messageRoutes         from './routes/messages';   // ← NUEVA
+import policyRoutes from './routes/policies';
+import documentRoutes from './routes/documents';
+import messageRoutes from './routes/messages';
+import signedDocumentsRoutes from './routes/signedDocuments'; // ✅ NUEVO IMPORT
 
-import { db } from './config/db'; // (por si deseas comprobar la conexión)
+import { db } from './config/db';
 
 dotenv.config();
 
 const app = express();
 
 /* ───────────── Middlewares globales ───────────── */
-app.use(express.json({ limit: '1mb' }));          // ← body-parser JSON
-app.use(express.urlencoded({ extended: true }));  // ← body-parser x-www-form-urlencoded
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 /* ───────────── CORS ───────────── */
 const allowedOrigins = [
-  'https://crm.insurancemultiservices.com', // producción
-  'http://localhost:5173',                  // desarrollo local
+  'https://crm.insurancemultiservices.com',
+  'http://localhost:5173',
 ];
 
 const corsOptions: cors.CorsOptions = {
@@ -42,14 +41,15 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 
 /* ───────────── Rutas API ───────────── */
-app.use('/api/clients',            clientRoutes);
-app.use('/api/agents',             agentRoutes);
-app.use('/api/auth',               authRoutes);
-app.use('/api/auth',               changePasswordRoute);
+app.use('/api/clients', clientRoutes);
+app.use('/api/agents', agentRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/auth', changePasswordRoute);
 app.use('/api/product-categories', productCategoryRoutes);
-app.use('/api/policies',           policyRoutes);
-app.use('/api/documents',          documentRoutes);
-app.use('/api/messages',           messageRoutes);   // ← NUEVO ENDPOINT
+app.use('/api/policies', policyRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ NUEVA RUTA ACTIVADA
 
 /* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
