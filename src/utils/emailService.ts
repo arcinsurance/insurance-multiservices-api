@@ -13,6 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// 🎉 Email de bienvenida para agentes nuevos
 export const sendAgentWelcomeEmail = async (
   email: string,
   fullName: string,
@@ -35,6 +36,27 @@ export const sendAgentWelcomeEmail = async (
       <p><strong>Importante:</strong> Esta contraseña temporal expirará en 24 horas. Te pediremos que la cambies al iniciar sesión.</p>
       <br/>
       <p>Saludos,<br>Equipo de Insurance Multiservices</p>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+// 📨 Email de mensajes enviados por el sistema
+export const sendSystemMessageEmail = async (
+  toEmail: string,
+  subject: string,
+  content: string
+) => {
+  const mailOptions = {
+    from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: subject || 'Nuevo mensaje del sistema',
+    html: `
+      <h3>Has recibido un nuevo mensaje</h3>
+      <p>${content}</p>
+      <br/>
+      <p>Este mensaje ha sido enviado desde el sistema CRM de Insurance Multiservices.</p>
     `,
   };
 
