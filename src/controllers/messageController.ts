@@ -113,7 +113,7 @@ export const sendMessage = async (req: Request, res: Response) => {
       `SELECT 
          m.*, 
          CASE 
-           WHEN m.recipient_type = 'client' THEN c.full_name 
+           WHEN m.recipient_type = 'client' THEN c.name 
            WHEN m.recipient_type = 'agent' THEN a.full_name 
            ELSE NULL 
          END AS recipientName,
@@ -145,7 +145,7 @@ export const getMessages = async (_req: Request, res: Response) => {
       SELECT 
         m.*,
         CASE
-          WHEN m.recipient_type = 'client' THEN c.full_name
+          WHEN m.recipient_type = 'client' THEN c.name
           WHEN m.recipient_type = 'agent'  THEN a.full_name
           ELSE NULL
         END AS recipientName,
