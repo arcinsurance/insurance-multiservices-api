@@ -1,3 +1,4 @@
+// src/index.ts
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -10,7 +11,7 @@ import productCategoryRoutes from './routes/productCategories';
 import policyRoutes from './routes/policies';
 import documentRoutes from './routes/documents';
 import messageRoutes from './routes/messages';
-import signedDocumentsRoutes from './routes/signedDocuments'; // ✅ NUEVO IMPORT
+import signedDocumentsRoutes from './routes/signedDocuments';  // ✅ Envío y firma de documentos
 
 import { db } from './config/db';
 
@@ -24,8 +25,8 @@ app.use(express.urlencoded({ extended: true }));
 
 /* ───────────── CORS ───────────── */
 const allowedOrigins = [
-  'https://crm.insurancemultiservices.com',
-  'http://localhost:5173',
+  'https://crm.insurancemultiservices.com', // producción
+  'http://localhost:5173',                  // desarrollo local
 ];
 
 const corsOptions: cors.CorsOptions = {
@@ -49,7 +50,7 @@ app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ NUEVA RUTA ACTIVADA
+app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ Ruta para firma de documentos
 
 /* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
