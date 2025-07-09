@@ -1,20 +1,20 @@
-// src/routes/signDocuments.ts
+// src/routes/signedDocuments.ts
 import express from 'express';
 import {
   sendDocumentForSignature,
   getPendingDocuments,
-  signDocument,
+  signDocument
 } from '../controllers/signDocumentController';
 
 const router = express.Router();
 
-// 📤 Enviar documento a firma
-router.post('/send', sendDocumentForSignature);
+// Ruta para registrar documento pendiente de firma
+router.post('/', sendDocumentForSignature);
 
-// 📥 Obtener documentos pendientes para un cliente
-router.get('/pending/:clientId', getPendingDocuments);
+// Ruta para obtener los documentos pendientes de un cliente
+router.get('/:clientId', getPendingDocuments);
 
-// ✍️ Guardar la firma de un documento
+// Ruta para guardar la firma del documento
 router.post('/sign', signDocument);
 
 export default router;
