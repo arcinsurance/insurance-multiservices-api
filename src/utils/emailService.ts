@@ -17,6 +17,25 @@ const transporter = nodemailer.createTransport({
 });
 
 /* -------------------------------------------------------------------------- */
+/* FUNCIÓN GENÉRICA: Enviar correo simple (para uso general)                 */
+/* -------------------------------------------------------------------------- */
+export async function sendEmail(
+  recipientEmail: string,
+  subject: string,
+  body: string
+): Promise<void> {
+  const mailOptions = {
+    from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
+    to: recipientEmail,
+    subject,
+    text: body,
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`Email enviado a ${recipientEmail} (asunto: "${subject}")`);
+}
+
+/* -------------------------------------------------------------------------- */
 /* 1. Mensaje de sistema para AGENTES (texto plano)                           */
 /* -------------------------------------------------------------------------- */
 export async function sendSystemMessageEmail(
