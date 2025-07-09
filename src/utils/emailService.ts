@@ -34,5 +34,11 @@ export const sendSystemMessageEmail = async (
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Email enviado con éxito a ${recipientEmail} con asunto "${subject}"`);
+  } catch (error) {
+    console.error(`❌ Error al enviar correo a ${recipientEmail}:`, error);
+    throw error; // importante para que el controlador capture y responda si falla
+  }
 };
