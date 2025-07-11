@@ -145,3 +145,20 @@ export async function deleteClient(req: Request, res: Response) {
   await db.execute('DELETE FROM clients WHERE id = ?', [req.params.id]);
   res.sendStatus(204);
 }
+/* ──────────────────────── GET BY ID ──────────────────────── */
+export async function getClientById(req: Request, res: Response) {
+  const { id } = req.params;
+
+  try {
+    const [rows] = await db.query('SELECT * FROM clients WHERE id = ?', [id]);
+
+    if ((rows as any[]).length === 0) {
+      return res.status(404).json({ message: 'Client not found' });
+    }
+
+    res.json((rows as any[])[0]);
+  } catch (err) {
+    console.error('Error fetching client by ID:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
