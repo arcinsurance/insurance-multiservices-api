@@ -1,13 +1,13 @@
-// src/controllers/settingsController.ts
 import { Request, Response } from 'express';
 import { db } from '../config/db';
+import { RowDataPacket } from 'mysql2';
 
 /* ───────────── AGENCY PROFILE ───────────── */
 
 export const getAgencyProfile = async (req: Request, res: Response) => {
   try {
-    const [rows] = await db.query('SELECT * FROM agency_profile WHERE id = 1');
-    if (Array.isArray(rows) && rows.length > 0) {
+    const [rows] = await db.query<RowDataPacket[]>('SELECT * FROM agency_profile WHERE id = 1');
+    if (rows.length > 0) {
       res.json(rows[0]);
     } else {
       res.status(404).json({ message: 'Agency profile not found' });
@@ -40,8 +40,8 @@ export const updateAgencyProfile = async (req: Request, res: Response) => {
       [agency_name, address, phone, email, contact_person, license_number]
     );
 
-    const [updated] = await db.query('SELECT * FROM agency_profile WHERE id = 1');
-    res.json(Array.isArray(updated) ? updated[0] : {});
+    const [updated] = await db.query<RowDataPacket[]>('SELECT * FROM agency_profile WHERE id = 1');
+    res.json(updated[0]);
   } catch (error) {
     res.status(500).json({ message: 'Error updating agency profile', error });
   }
@@ -51,11 +51,10 @@ export const updateAgencyProfile = async (req: Request, res: Response) => {
 
 export const getAppSettings = async (req: Request, res: Response) => {
   try {
-    const [rows] = await db.query('SELECT * FROM app_settings WHERE id = 1');
-    if (Array.isArray(rows) && rows.length > 0) {
+    const [rows] = await db.query<RowDataPacket[]>('SELECT * FROM app_settings WHERE id = 1');
+    if (rows.length > 0) {
       const settings = rows[0];
 
-      // Agrupar los campos como en el frontend
       const formatted = {
         integrations: {
           emailNotifications: !!settings.email_notifications,
@@ -106,8 +105,8 @@ export const updateAppSettings = async (req: Request, res: Response) => {
       ]
     );
 
-    const [updated] = await db.query('SELECT * FROM app_settings WHERE id = 1');
-    res.json(Array.isArray(updated) ? updated[0] : {});
+    const [updated] = await db.query<RowDataPacket[]>('SELECT * FROM app_settings WHERE id = 1');
+    res.json(updated[0]);
   } catch (error) {
     res.status(500).json({ message: 'Error updating app settings', error });
   }
