@@ -1,45 +1,115 @@
 // src/controllers/settingsController.ts
 import { Request, Response } from 'express';
+import { db } from '../config/db';
 
-let agencyProfile = {
-  agencyName: 'Insurance Multiservices LLC',
-  address: '7902 W Waters Ave, Ste. E, Tampa, FL 33615',
-  phone: '813-885-5296',
-  email: 'idealhealthinsurance@gmail.com',
-  contactPerson: 'Yosanys P Guerra Valverde',
-  licenseNumber: 'L123527',
+// ──────── AGENCY PROFILE ────────
+
+export const getAgencyProfile = async (req: Request, res: Response) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM agency_profile LIMIT 1');
+    const profile = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+
+    if (!profile) {
+      return res.status(404).json({ message: 'Agency profile not found' });
+    }
+
+    res.json(profile);
+  } catch (error) {
+    console.error('Error fetching agency profile:', error);
+    res.status(500).json({ message: 'Error retrieving agency profile' });
+  }
 };
 
-let appSettings = {
-  integrations: {
-    emailNotifications: true,
-    eSignature: false,
-    smsNotifications: false,
-  },
-  general: {
-    timezone: 'GMT-5 (Eastern Time)',
-    language: 'es',
-  },
-  security: {
-    passwordPolicy: 'Medium',
-    twoFactorAuth: false,
-  },
+export const updateAgencyProfile = async (req: Request, res: Response) => {
+  const {
+    agency_name,
+    address,
+    phone,
+    email,
+    contact_person,
+    license_number,
+  } = req.body;
+
+  try {
+    await db.query(`
+      UPDATE agency_profile SET 
+        agency_name = ?, 
+        address = ?, 
+        phone = ?, 
+        email = ?, 
+        contact_person = ?, 
+        license_number = ?
+      LIMIT 1
+    `, [agency_name, address, phone, email, contact_person, license_number]);
+
+    const [updatedRows] = await db.query('SELECT * FROM agency_profile LIMIT 1');
+    res.json(updatedRows[0]);
+  } catch (error) {
+    console.error('Error updating agency profile:', error);
+    res.status(500).json({ message: 'Error updating agency profile' });
+  }
 };
 
-export const getAgencyProfile = (req: Request, res: Response) => {
-  res.json(agencyProfile);
+// ──────── APP SETTINGS ────────
+
+export const getAppSettings = async (req: Request, res: Response) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM app_settings LIMIT 1');
+    const settings = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+
+    if (!settings) {
+      return res.status(404).json({ message: 'App settings not found' });
+    }
+
+    // Convert values to proper types
+    settings.email_notifications = !!settings.email_notifications;
+    settings.e_signature = !!settings.e_signature;
+    settings.sms_notifications = !!settings.sms_notifications;
+    settings.two_factor_auth = !!settings.two_factor_auth;
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching app settings:', error);
+    res.status(500).json({ message: 'Error retrieving app settings' });
+  }
 };
 
-export const updateAgencyProfile = (req: Request, res: Response) => {
-  agencyProfile = { ...agencyProfile, ...req.body };
-  res.json(agencyProfile);
-};
+export const updateAppSettings = async (req: Request, res: Response) => {
+  const {
+    email_notifications,
+    e_signature,
+    sms_notifications,
+    timezone,
+    language,
+    password_policy,
+    two_factor_auth,
+  } = req.body;
 
-export const getAppSettings = (req: Request, res: Response) => {
-  res.json(appSettings);
-};
+  try {
+    await db.query(`
+      UPDATE app_settings SET 
+        email_notifications = ?, 
+        e_signature = ?, 
+        sms_notifications = ?, 
+        timezone = ?, 
+        language = ?, 
+        password_policy = ?, 
+        two_factor_auth = ?
+      LIMIT 1
+    `, [
+      email_notifications,
+      e_signature,
+      sms_notifications,
+      timezone,
+      language,
+      password_policy,
+      two_factor_auth,
+    ]);
 
-export const updateAppSettings = (req: Request, res: Response) => {
-  appSettings = { ...appSettings, ...req.body };
-  res.json(appSettings);
+    const [updatedRows] = await db.query('SELECT * FROM app_settings LIMIT 1');
+    res.json(updatedRows[0]);
+  } catch (error) {
+    console.error('Error updating app settings:', error);
+    res.status(500).json({ message: 'Error updating app settings' });
+  }
 };
