@@ -1,7 +1,7 @@
 // src/routes/documentTemplates.ts
 import express from 'express';
 import {
-  getAllDocumentTemplates,
+  getDocumentTemplates, // ✅ Nombre correcto
   createDocumentTemplate,
   updateDocumentTemplate,
   deleteDocumentTemplate,
@@ -10,7 +10,7 @@ import {
 const router = express.Router();
 
 // Obtener todas las plantillas
-router.get('/', getAllDocumentTemplates);
+router.get('/', getDocumentTemplates);
 
 // Crear una nueva plantilla
 router.post('/', createDocumentTemplate);
