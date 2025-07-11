@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { db } from '../config/db';
 
 // Obtener todas las plantillas de documentos
-export const getDocumentTemplates = async (req: Request, res: Response) => {
+export const getAllDocumentTemplates = async (req: Request, res: Response) => {
   try {
     const [rows] = await db.query('SELECT * FROM document_templates');
     res.json(rows);
