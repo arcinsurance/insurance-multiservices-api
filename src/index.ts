@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import documentTemplatesRoutes from './routes/documentTemplates';
 
 import clientRoutes from './routes/clients';
 import agentRoutes from './routes/agents';
@@ -53,6 +54,8 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ Ruta para firma de documentos
 app.use('/api/settings', settingsRoutes);
+app.use('/api/document-templates', documentTemplatesRoutes);
+
 
 /* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
