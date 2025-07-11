@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getClients,
+  getClientById, // ✅ importar
   createClient,
   updateClient,
   deleteClient,
@@ -11,6 +12,7 @@ import { createPolicy } from '../controllers/policyController'; // 🆕 importar
 const router = express.Router();
 
 router.get('/', getClients);
+router.get('/:id', getClientById); // ✅ esta es la ruta que te faltaba
 router.post('/', createClient);
 router.put('/:id', updateClient);
 router.delete('/:id', deleteClient);
