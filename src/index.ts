@@ -12,6 +12,7 @@ import policyRoutes from './routes/policies';
 import documentRoutes from './routes/documents';
 import messageRoutes from './routes/messages';
 import signedDocumentsRoutes from './routes/signedDocuments';  // ✅ Envío y firma de documentos
+import settingsRoutes from './routes/settingsRoutes';
 
 import { db } from './config/db';
 
@@ -51,6 +52,7 @@ app.use('/api/policies', policyRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ Ruta para firma de documentos
+app.use('/api/settings', settingsRoutes);
 
 /* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
