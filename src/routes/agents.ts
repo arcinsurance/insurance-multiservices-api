@@ -5,7 +5,7 @@ import {
   getAllAgents,
   deleteAgent,
   deactivateAgent,
-  activateAgent    // 👈 IMPORTA el controlador para activar
+  activateAgent, // <-- AGREGA ESTA IMPORTACIÓN
 } from '../controllers/agentController';
 
 const router = Router();
@@ -14,12 +14,12 @@ router.post('/', createAgent);
 router.get('/', getAllAgents);
 router.delete('/:id', deleteAgent);
 
-// Rutas para desactivar (compatibilidad POST/PATCH)
+// Desactivar
 router.post('/:id/deactivate', deactivateAgent);
 router.patch('/:id/deactivate', deactivateAgent);
 
-// Rutas para activar (compatibilidad POST/PATCH)
-router.post('/:id/activate', activateAgent);
-router.patch('/:id/activate', activateAgent);
+// ACTIVAR
+router.post('/:id/activate', activateAgent);    // <-- OPCIONAL, para compatibilidad
+router.patch('/:id/activate', activateAgent);   // <-- ESTA ES LA QUE NECESITAS
 
 export default router;
