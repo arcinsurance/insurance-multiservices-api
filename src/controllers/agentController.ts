@@ -149,20 +149,37 @@ export const deleteAgent = async (req: Request, res: Response) => {
 };
 
 /* ------------------------------------------------------------------ */
-/* 4. Desactivar agente (nuevo)                                        */
+/* 4. Desactivar agente                                               */
 /* ------------------------------------------------------------------ */
 export const deactivateAgent = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    // Cambia 'is_active' si tu campo es diferente
     const [result] = await db.query('UPDATE agents SET is_active = 0 WHERE id = ?', [id]);
     const affected = (result as any).affectedRows;
     if (affected === 0) {
       return res.status(404).json({ error: 'Agent not found' });
     }
-    res.json({ message: 'Agent deactivated successfully' });
+    res.json({ message: 'Agent deactivated successfully', id });
   } catch (error) {
     console.error('Error deactivating agent:', error);
     res.status(500).json({ message: 'Error deactivating agent', error });
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/* 5. Activar agente (nuevo)                                           */
+/* ------------------------------------------------------------------ */
+export const activateAgent = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const [result] = await db.query('UPDATE agents SET is_active = 1 WHERE id = ?', [id]);
+    const affected = (result as any).affectedRows;
+    if (affected === 0) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    res.json({ message: 'Agent activated successfully', id });
+  } catch (error) {
+    console.error('Error activating agent:', error);
+    res.status(500).json({ message: 'Error activating agent', error });
   }
 };
