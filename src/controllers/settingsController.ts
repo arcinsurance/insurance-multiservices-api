@@ -6,7 +6,8 @@ import { RowDataPacket } from 'mysql2';
 
 export const getAgencyProfile = async (req: Request, res: Response) => {
   try {
-    const [rows] = await db.query<RowDataPacket[]>('SELECT * FROM agency_profile WHERE id = 1');
+    // Consulta robusta: siempre obtiene el primer registro, sin importar el id
+    const [rows] = await db.query<RowDataPacket[]>('SELECT * FROM agency_profile LIMIT 1');
     if (rows.length > 0) {
       res.json(rows[0]);
     } else {
@@ -36,11 +37,11 @@ export const updateAgencyProfile = async (req: Request, res: Response) => {
         email = ?, 
         contact_person = ?, 
         license_number = ? 
-      WHERE id = 1`,
+      LIMIT 1`,
       [agency_name, address, phone, email, contact_person, license_number]
     );
 
-    const [updated] = await db.query<RowDataPacket[]>('SELECT * FROM agency_profile WHERE id = 1');
+    const [updated] = await db.query<RowDataPacket[]>('SELECT * FROM agency_profile LIMIT 1');
     res.json(updated[0]);
   } catch (error) {
     res.status(500).json({ message: 'Error updating agency profile', error });
