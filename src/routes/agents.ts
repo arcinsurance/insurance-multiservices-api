@@ -4,7 +4,7 @@ import {
   createAgent,
   getAllAgents,
   deleteAgent,
-  deactivateAgent   // 👈 Asegúrate de importar el controlador
+  deactivateAgent
 } from '../controllers/agentController';
 
 const router = Router();
@@ -12,6 +12,9 @@ const router = Router();
 router.post('/', createAgent);
 router.get('/', getAllAgents);
 router.delete('/:id', deleteAgent);
-router.post('/:id/deactivate', deactivateAgent); // 👈 Nueva ruta para desactivar agentes
+
+// 👇 Ambas rutas: POST y PATCH para compatibilidad con cualquier frontend
+router.post('/:id/deactivate', deactivateAgent);
+router.patch('/:id/deactivate', deactivateAgent);
 
 export default router;
