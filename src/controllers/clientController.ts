@@ -109,7 +109,6 @@ export async function updateClientEmployment(req: Request, res: Response) {
   const clientId = req.params.id;
   let employmentData = req.body;
 
-  // <--- CORRECCIÓN CRÍTICA --->
   // Asegura que SIEMPRE sea un array
   if (!Array.isArray(employmentData)) {
     if (employmentData && typeof employmentData === 'object') {
@@ -120,19 +119,23 @@ export async function updateClientEmployment(req: Request, res: Response) {
   }
 
   try {
+    // Elimina los registros antiguos de ese cliente
     await db.execute('DELETE FROM income_sources WHERE client_id = ?', [clientId]);
 
+    // Inserta los nuevos registros válidos
     const validSources = employmentData.filter(
       (src: any) => src && (src.employerOrSelfEmployed || src.positionOccupation || src.annualIncome)
     );
 
     for (const source of validSources) {
       await db.execute(
-        `INSERT INTO income_sources (client_id, employer_or_self_employed, position_occupation, annual_income)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT INTO income_sources 
+          (client_id, employerOrSelfEmployed, employerPhoneNumber, positionOccupation, annualIncome)
+         VALUES (?, ?, ?, ?, ?)`,
         [
           clientId,
           source.employerOrSelfEmployed ?? null,
+          source.employerPhoneNumber ?? null,
           source.positionOccupation ?? null,
           source.annualIncome ?? null
         ]
@@ -145,8 +148,6 @@ export async function updateClientEmployment(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
-
-
 /* ─────────────────── IMMIGRATION ─────────────────── */
 export async function updateClientImmigration(req: Request, res: Response) {
   const clientId = req.params.id;
