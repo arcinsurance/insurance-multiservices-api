@@ -1,4 +1,3 @@
-/* src/controllers/clientController.ts */
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,74 +13,40 @@ export async function createClient(req: Request, res: Response) {
   try {
     const data = req.body;
 
-    /* 1️⃣ Validación mínima */
     if (!data.firstName || !data.lastName) {
-      return res.status(400).json({
-        message: 'firstName and lastName are required.'
-      });
+      return res.status(400).json({ message: 'firstName and lastName are required.' });
     }
 
-    /* 2️⃣ Agente asignado (opcional) */
     const agentId: string | null = data.assignedAgentId ?? null;
-
     let agentFullName: string | null = null;
+
     if (agentId) {
-      // Cambia "agents" por el nombre real de tu tabla de agentes si es distinto
-      const [rows] = await db.query(
-        'SELECT full_name FROM agents WHERE id = ?',
-        [agentId]
-      );
+      const [rows] = await db.query('SELECT full_name FROM agents WHERE id = ?', [agentId]);
       if ((rows as any[]).length) {
         agentFullName = (rows as any[])[0].full_name ?? null;
       }
     }
 
-    /* 3️⃣ Generar ID manual para evitar '' duplicados */
     const id = uuidv4();
+    const fullName = [data.firstName, data.middleName, data.lastName, data.lastName2].filter(Boolean).join(' ');
 
-    /* 4️⃣ Construir nombre completo */
-    const fullName = [
-      data.firstName,
-      data.middleName,
-      data.lastName,
-      data.lastName2
-    ]
-      .filter(Boolean)
-      .join(' ');
-
-    /* 5️⃣ Insertar en BBDD */
     await db.execute(
       `INSERT INTO clients (
-        id,
-        agent_id,            assigned_agent_full_name,
-        first_name,          middle_name,         last_name,      last_name_2,
-        email,               phone,
-        date_of_birth,       gender,              preferred_language,
-        is_tobacco_user,     is_pregnant,         is_lead,
-        name,
-        date_added
+        id, agent_id, assigned_agent_full_name,
+        first_name, middle_name, last_name, last_name_2,
+        email, phone, date_of_birth, gender, preferred_language,
+        is_tobacco_user, is_pregnant, is_lead, name, date_added
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
-        id,
-        agentId,
-        agentFullName,
-        data.firstName,
-        data.middleName ?? null,
-        data.lastName,
-        data.lastName2 ?? null,
-        data.email ?? null,
-        data.phone ?? null,
-        data.dateOfBirth ?? null,
-        data.gender ?? null,
-        data.preferredLanguage ?? null,
-        data.isTobaccoUser ?? false,
-        data.isPregnant ?? false,
-        data.isLead ?? false,
+        id, agentId, agentFullName,
+        data.firstName, data.middleName ?? null, data.lastName, data.lastName2 ?? null,
+        data.email ?? null, data.phone ?? null,
+        data.dateOfBirth ?? null, data.gender ?? null, data.preferredLanguage ?? null,
+        data.isTobaccoUser ?? false, data.isPregnant ?? false, data.isLead ?? false,
         fullName
       ]
     );
 
-    /* 6️⃣ Respuesta */
     res.status(201).json({ id });
   } catch (err) {
     console.error('Error creating client:', err);
@@ -93,47 +58,24 @@ export async function createClient(req: Request, res: Response) {
 export async function updateClient(req: Request, res: Response) {
   const { id } = req.params;
   const {
-    firstName,
-    middleName,
-    lastName,
-    lastName2,
-    email,
-    phone,
-    dateOfBirth,
-    gender,
-    preferredLanguage,
-    isTobaccoUser,
-    isPregnant,
-    isLead
+    firstName, middleName, lastName, lastName2,
+    email, phone, dateOfBirth, gender, preferredLanguage,
+    isTobaccoUser, isPregnant, isLead
   } = req.body;
 
-  /* reconstruir nombre completo */
-  const fullName = [firstName, middleName, lastName, lastName2]
-    .filter(Boolean)
-    .join(' ');
+  const fullName = [firstName, middleName, lastName, lastName2].filter(Boolean).join(' ');
 
   await db.execute(
     `UPDATE clients SET
-      first_name        = ?,  middle_name     = ?, last_name   = ?, last_name_2 = ?,
-      email             = ?,  phone           = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
-      is_tobacco_user   = ?,  is_pregnant     = ?, is_lead     = ?,
-      name              = ?
+      first_name = ?, middle_name = ?, last_name = ?, last_name_2 = ?,
+      email = ?, phone = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
+      is_tobacco_user = ?, is_pregnant = ?, is_lead = ?, name = ?
      WHERE id = ?`,
     [
-      firstName,
-      middleName ?? null,
-      lastName,
-      lastName2 ?? null,
-      email ?? null,
-      phone ?? null,
-      dateOfBirth ?? null,
-      gender ?? null,
-      preferredLanguage ?? null,
-      isTobaccoUser ?? false,
-      isPregnant ?? false,
-      isLead ?? false,
-      fullName,
-      id
+      firstName, middleName ?? null, lastName, lastName2 ?? null,
+      email ?? null, phone ?? null, dateOfBirth ?? null, gender ?? null, preferredLanguage ?? null,
+      isTobaccoUser ?? false, isPregnant ?? false, isLead ?? false,
+      fullName, id
     ]
   );
 
@@ -145,6 +87,7 @@ export async function deleteClient(req: Request, res: Response) {
   await db.execute('DELETE FROM clients WHERE id = ?', [req.params.id]);
   res.sendStatus(204);
 }
+
 /* ──────────────────────── GET BY ID ──────────────────────── */
 export async function getClientById(req: Request, res: Response) {
   const { id } = req.params;
@@ -159,6 +102,112 @@ export async function getClientById(req: Request, res: Response) {
     res.json((rows as any[])[0]);
   } catch (err) {
     console.error('Error fetching client by ID:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+/* ─────────────────── EMPLOYMENT ─────────────────── */
+export async function updateClientEmployment(req: Request, res: Response) {
+  const clientId = req.params.id;
+  const employmentData = req.body;
+
+  try {
+    await db.execute('DELETE FROM income_sources WHERE client_id = ?', [clientId]);
+
+    const validSources = employmentData.filter(
+      (src: any) => src.employerOrSelfEmployed || src.positionOccupation || src.annualIncome
+    );
+
+    for (const source of validSources) {
+      await db.execute(
+        `INSERT INTO income_sources (client_id, employer_or_self_employed, position_occupation, annual_income)
+         VALUES (?, ?, ?, ?)`,
+        [
+          clientId,
+          source.employerOrSelfEmployed ?? null,
+          source.positionOccupation ?? null,
+          source.annualIncome ?? null
+        ]
+      );
+    }
+
+    res.sendStatus(204);
+  } catch (error) {
+    console.error('Error updating employment:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+/* ─────────────────── IMMIGRATION ─────────────────── */
+export async function updateClientImmigration(req: Request, res: Response) {
+  const clientId = req.params.id;
+  const data = req.body;
+
+  try {
+    await db.execute('DELETE FROM immigration_details WHERE client_id = ?', [clientId]);
+
+    if (data.status || data.category || data.ssn || data.uscisNumber) {
+      await db.execute(
+        `INSERT INTO immigration_details (client_id, status, category, ssn, uscis_number)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          clientId,
+          data.status ?? null,
+          data.category ?? null,
+          data.ssn ?? null,
+          data.uscisNumber ?? null
+        ]
+      );
+    }
+
+    res.sendStatus(204);
+  } catch (error) {
+    console.error('Error updating immigration:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+/* ───────────────────── ADDRESSES ───────────────────── */
+export async function updateClientAddresses(req: Request, res: Response) {
+  const clientId = req.params.id;
+  const { physicalAddress, mailingAddress, mailingSameAsPhysical } = req.body;
+
+  try {
+    await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
+
+    if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
+      await db.execute(
+        `INSERT INTO addresses (client_id, type, line1, line2, city, state, zip_code)
+         VALUES (?, 'physical', ?, ?, ?, ?, ?)`,
+        [
+          clientId,
+          physicalAddress.line1 ?? null,
+          physicalAddress.line2 ?? null,
+          physicalAddress.city ?? null,
+          physicalAddress.state ?? null,
+          physicalAddress.zipCode ?? null
+        ]
+      );
+    }
+
+    if (!mailingSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
+      await db.execute(
+        `INSERT INTO addresses (client_id, type, line1, line2, city, state, zip_code)
+         VALUES (?, 'mailing', ?, ?, ?, ?, ?)`,
+        [
+          clientId,
+          mailingAddress.line1 ?? null,
+          mailingAddress.line2 ?? null,
+          mailingAddress.city ?? null,
+          mailingAddress.state ?? null,
+          mailingAddress.zipCode ?? null
+        ]
+      );
+    }
+
+    res.sendStatus(204);
+  } catch (error) {
+    console.error('Error updating addresses:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
