@@ -94,11 +94,9 @@ export async function getClientById(req: Request, res: Response) {
 
   try {
     const [rows] = await db.query('SELECT * FROM clients WHERE id = ?', [id]);
-
     if ((rows as any[]).length === 0) {
       return res.status(404).json({ message: 'Client not found' });
     }
-
     res.json((rows as any[])[0]);
   } catch (err) {
     console.error('Error fetching client by ID:', err);
@@ -106,16 +104,26 @@ export async function getClientById(req: Request, res: Response) {
   }
 }
 
-/* ─────────────────── EMPLOYMENT ─────────────────── */
+/* ─────────────────── EMPLOYMENT (corregido) ─────────────────── */
 export async function updateClientEmployment(req: Request, res: Response) {
   const clientId = req.params.id;
-  const employmentData = req.body;
+  let employmentData = req.body;
+
+  // <--- CORRECCIÓN CRÍTICA --->
+  // Asegura que SIEMPRE sea un array
+  if (!Array.isArray(employmentData)) {
+    if (employmentData && typeof employmentData === 'object') {
+      employmentData = [employmentData];
+    } else {
+      employmentData = [];
+    }
+  }
 
   try {
     await db.execute('DELETE FROM income_sources WHERE client_id = ?', [clientId]);
 
     const validSources = employmentData.filter(
-      (src: any) => src.employerOrSelfEmployed || src.positionOccupation || src.annualIncome
+      (src: any) => src && (src.employerOrSelfEmployed || src.positionOccupation || src.annualIncome)
     );
 
     for (const source of validSources) {
