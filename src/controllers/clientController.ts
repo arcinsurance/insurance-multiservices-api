@@ -146,6 +146,7 @@ export async function updateClientEmployment(req: Request, res: Response) {
   }
 }
 
+
 /* ─────────────────── IMMIGRATION ─────────────────── */
 export async function updateClientImmigration(req: Request, res: Response) {
   const clientId = req.params.id;
