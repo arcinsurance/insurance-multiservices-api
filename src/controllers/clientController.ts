@@ -142,7 +142,15 @@ export async function updateClientEmployment(req: Request, res: Response) {
       );
     }
 
-    res.sendStatus(204);
+    // --- DEVUELVE el cliente actualizado ---
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]);
+    const [income] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [clientId]);
+    const client = (clients as any[])[0] || null;
+    if (client) {
+      client.incomeSources = income;
+    }
+    res.status(200).json(client);
+
   } catch (error) {
     console.error('Error updating employment:', error);
     res.status(500).json({ message: 'Internal server error' });
