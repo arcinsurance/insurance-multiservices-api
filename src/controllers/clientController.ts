@@ -4,10 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 /* ─────────────── GET ALL ─────────────── */
 export async function getClients(_req: Request, res: Response) {
-  const [clients] = await db.query('SELECT * FROM clients ORDER BY date_added DESC') as [any[]];
-  const [incomes] = await db.query('SELECT * FROM income_sources') as [any[]];
-  const [immigrations] = await db.query('SELECT * FROM immigration_details') as [any[]];
-  const [addresses] = await db.query('SELECT * FROM addresses') as [any[]];
+  const [clients] = await db.query('SELECT * FROM clients ORDER BY date_added DESC') as unknown as [any[], any];
+  const [incomes] = await db.query('SELECT * FROM income_sources') as unknown as [any[], any];
+  const [immigrations] = await db.query('SELECT * FROM immigration_details') as unknown as [any[], any];
+  const [addresses] = await db.query('SELECT * FROM addresses') as unknown as [any[], any];
 
   const clientsWithDetails = clients.map(client => ({
     ...client,
@@ -33,7 +33,7 @@ export async function createClient(req: Request, res: Response) {
     let agentFullName: string | null = null;
 
     if (agentId) {
-      const [rows] = await db.query('SELECT full_name FROM agents WHERE id = ?', [agentId]) as [any[]];
+      const [rows] = await db.query('SELECT full_name FROM agents WHERE id = ?', [agentId]) as unknown as [any[], any];
       if (rows.length) {
         agentFullName = rows[0].full_name ?? null;
       }
@@ -105,14 +105,14 @@ export async function getClientById(req: Request, res: Response) {
   const { id } = req.params;
 
   try {
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [id]) as [any[]];
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [id]) as unknown as [any[], any];
     if (clients.length === 0) {
       return res.status(404).json({ message: 'Client not found' });
     }
 
-    const [incomes] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [id]) as [any[]];
-    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [id]) as [any[]];
-    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [id]) as [any[]];
+    const [incomes] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [id]) as unknown as [any[], any];
+    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [id]) as unknown as [any[], any];
+    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [id]) as unknown as [any[], any];
 
     const client = clients[0];
     client.incomeSources = incomes;
@@ -163,8 +163,8 @@ export async function updateClientEmployment(req: Request, res: Response) {
       );
     }
 
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as [any[]];
-    const [income] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [clientId]) as [any[]];
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as unknown as [any[], any];
+    const [income] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [clientId]) as unknown as [any[], any];
     const client = clients[0] || null;
     if (client) {
       client.incomeSources = income;
@@ -199,8 +199,8 @@ export async function updateClientImmigration(req: Request, res: Response) {
       );
     }
 
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as [any[]];
-    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]) as [any[]];
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as unknown as [any[], any];
+    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]) as unknown as [any[], any];
     const client = clients[0] || null;
     if (client) {
       client.immigrationDetails = immigration[0] ?? {};
@@ -250,8 +250,8 @@ export async function updateClientAddresses(req: Request, res: Response) {
       );
     }
 
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as [any[]];
-    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]) as [any[]];
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as unknown as [any[], any];
+    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]) as unknown as [any[], any];
     const client = clients[0] || null;
     if (client) {
       client.physicalAddress = addresses.find((a: any) => a.type === 'physical') ?? {};
