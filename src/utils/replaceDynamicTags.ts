@@ -1,34 +1,53 @@
-type ReplacementData = {
-  client?: any;
-  agent?: any;
-  policy?: any;
-};
-
-export function replaceDynamicTags(template: string, data: ReplacementData): string {
-  if (!template) return '';
-
-  const tagMap: { [key: string]: string } = {
-    '{{client_name}}': data.client?.name ?? '',
-    '{{client_address1}}': `${data.client?.physicalAddress?.line1 ?? ''} ${data.client?.physicalAddress?.line2 ?? ''} ${data.client?.physicalAddress?.city ?? ''} ${data.client?.physicalAddress?.state ?? ''} ${data.client?.physicalAddress?.zipCode ?? ''}`,
-    '{{client_dob}}': data.client?.date_of_birth ?? '',
-    '{{client_phone}}': data.client?.phone ?? '',
-    '{{client_email}}': data.client?.email ?? '',
-    '{{client_gender}}': data.client?.gender ?? '',
-    '{{client_language}}': data.client?.preferred_language ?? '',
-    '{{client_ssn}}': data.client?.immigrationDetails?.ssn ?? '',
-    '{{client_uscis}}': data.client?.immigrationDetails?.uscis_number ?? '',
-    '{{client_employer}}': data.client?.incomeSources?.[0]?.employerOrSelfEmployed ?? '',
-
-    '{{agent_name}}': data.agent?.full_name ?? '',
-    '{{agent_npn}}': data.agent?.npn ?? '',
-
-    '{{policy_market_id}}': data.policy?.market_id ?? '',
-
-    '{{current_date}}': new Date().toLocaleDateString(),
-    '{{current_year}}': new Date().getFullYear().toString(),
+interface ClientData {
+  name: string;
+  email?: string;
+  phone?: string;
+  date_of_birth?: string;
+  preferred_language?: string;
+  physicalAddress?: {
+    line1?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
   };
+  assigned_agent_full_name?: string;
+  agent_npn?: string;
+}
 
-  return Object.entries(tagMap).reduce((result, [tag, value]) => {
-    return result.replaceAll(tag, value);
-  }, template);
+export function replaceDynamicTags(template: string, client: ClientData): string {
+  let result = template;
+
+  // Utilidad de reemplazo segura
+  const safeReplace = (str: string, search: string, replacement: string = '') =>
+    str.split(search).join(replacement);
+
+  // Datos del cliente
+  result = safeReplace(result, '{{client_name}}', client.name);
+  result = safeReplace(result, '{{client_email}}', client.email || '');
+  result = safeReplace(result, '{{client_phone}}', client.phone || '');
+  result = safeReplace(result, '{{client_dob}}', client.date_of_birth || '');
+  result = safeReplace(result, '{{client_language}}', client.preferred_language || '');
+
+  // Dirección física
+  if (client.physicalAddress) {
+    const { line1 = '', city = '', state = '', zip_code = '' } = client.physicalAddress;
+    const address = [line1, city, state, zip_code].filter(Boolean).join(', ');
+    result = safeReplace(result, '{{client_address1}}', address);
+  } else {
+    result = safeReplace(result, '{{client_address1}}', '');
+  }
+
+  // Datos del agente
+  result = safeReplace(result, '{{agent_name}}', client.assigned_agent_full_name || '');
+  result = safeReplace(result, '{{agent_npn}}', client.agent_npn || '');
+
+  // Datos del sistema
+  const today = new Date();
+  const currentYear = today.getFullYear().toString();
+  const currentDate = today.toISOString().split('T')[0];
+
+  result = safeReplace(result, '{{current_year}}', currentYear);
+  result = safeReplace(result, '{{current_date}}', currentDate);
+
+  return result;
 }
