@@ -4,18 +4,18 @@ import { v4 as uuidv4 } from 'uuid';
 
 /* ─────────────── GET ALL ─────────────── */
 export async function getClients(_req: Request, res: Response) {
-  const [clients] = await db.query('SELECT * FROM clients ORDER BY date_added DESC');
-  const [incomes] = await db.query('SELECT * FROM income_sources');
-  const [immigrations] = await db.query('SELECT * FROM immigration_details');
-  const [addresses] = await db.query('SELECT * FROM addresses');
+  const [clients] = await db.query('SELECT * FROM clients ORDER BY date_added DESC') as [any[]];
+  const [incomes] = await db.query('SELECT * FROM income_sources') as [any[]];
+  const [immigrations] = await db.query('SELECT * FROM immigration_details') as [any[]];
+  const [addresses] = await db.query('SELECT * FROM addresses') as [any[]];
 
-  const clientsWithDetails = (clients as any[]).map(client => ({
+  const clientsWithDetails = clients.map(client => ({
     ...client,
-    incomeSources: (incomes as any[]).filter(i => i.client_id === client.id),
-    immigrationDetails: (immigrations as any[]).find(i => i.client_id === client.id) || {},
-    physicalAddress: (addresses as any[]).find(a => a.client_id === client.id && a.type === 'physical') || {},
-    mailingAddress: (addresses as any[]).find(a => a.client_id === client.id && a.type === 'mailing') || {},
-    mailingAddressSameAsPhysical: !(addresses as any[]).some(a => a.client_id === client.id && a.type === 'mailing')
+    incomeSources: incomes.filter(i => i.client_id === client.id),
+    immigrationDetails: immigrations.find(i => i.client_id === client.id) || {},
+    physicalAddress: addresses.find(a => a.client_id === client.id && a.type === 'physical') || {},
+    mailingAddress: addresses.find(a => a.client_id === client.id && a.type === 'mailing') || {},
+    mailingAddressSameAsPhysical: !addresses.some(a => a.client_id === client.id && a.type === 'mailing')
   }));
 
   res.json(clientsWithDetails);
@@ -25,7 +25,6 @@ export async function getClients(_req: Request, res: Response) {
 export async function createClient(req: Request, res: Response) {
   try {
     const data = req.body;
-
     if (!data.firstName || !data.lastName) {
       return res.status(400).json({ message: 'firstName and lastName are required.' });
     }
@@ -34,9 +33,9 @@ export async function createClient(req: Request, res: Response) {
     let agentFullName: string | null = null;
 
     if (agentId) {
-      const [rows] = await db.query('SELECT full_name FROM agents WHERE id = ?', [agentId]);
-      if ((rows as any[]).length) {
-        agentFullName = (rows as any[])[0].full_name ?? null;
+      const [rows] = await db.query('SELECT full_name FROM agents WHERE id = ?', [agentId]) as [any[]];
+      if (rows.length) {
+        agentFullName = rows[0].full_name ?? null;
       }
     }
 
@@ -106,16 +105,16 @@ export async function getClientById(req: Request, res: Response) {
   const { id } = req.params;
 
   try {
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [id]);
-    if ((clients as any[]).length === 0) {
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [id]) as [any[]];
+    if (clients.length === 0) {
       return res.status(404).json({ message: 'Client not found' });
     }
 
-    const [incomes] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [id]);
-    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [id]);
-    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [id]);
+    const [incomes] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [id]) as [any[]];
+    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [id]) as [any[]];
+    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [id]) as [any[]];
 
-    const client = (clients as any[])[0];
+    const client = clients[0];
     client.incomeSources = incomes;
     client.immigrationDetails = immigration[0] ?? {};
     client.physicalAddress = addresses.find((a: any) => a.type === 'physical') ?? {};
@@ -164,9 +163,9 @@ export async function updateClientEmployment(req: Request, res: Response) {
       );
     }
 
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]);
-    const [income] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [clientId]);
-    const client = (clients as any[])[0] || null;
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as [any[]];
+    const [income] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [clientId]) as [any[]];
+    const client = clients[0] || null;
     if (client) {
       client.incomeSources = income;
     }
@@ -200,9 +199,9 @@ export async function updateClientImmigration(req: Request, res: Response) {
       );
     }
 
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]);
-    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]);
-    const client = (clients as any[])[0] || null;
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as [any[]];
+    const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]) as [any[]];
+    const client = clients[0] || null;
     if (client) {
       client.immigrationDetails = immigration[0] ?? {};
     }
@@ -251,9 +250,9 @@ export async function updateClientAddresses(req: Request, res: Response) {
       );
     }
 
-    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]);
-    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]);
-    const client = (clients as any[])[0] || null;
+    const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as [any[]];
+    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]) as [any[]];
+    const client = clients[0] || null;
     if (client) {
       client.physicalAddress = addresses.find((a: any) => a.type === 'physical') ?? {};
       client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') ?? {};
