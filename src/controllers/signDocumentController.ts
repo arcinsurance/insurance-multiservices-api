@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { sendEmail } from '../utils/emailService';
+import { replaceDynamicTags } from '../utils/replaceDynamicTags';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://tusitio.com';
 
@@ -16,13 +17,25 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     }
 
     const [clientRows]: any = await db.execute(
-      'SELECT id, name, email FROM clients WHERE id = ? LIMIT 1',
+      'SELECT * FROM clients WHERE id = ? LIMIT 1',
       [clientId]
     );
     if (clientRows.length === 0) {
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
     const client = clientRows[0];
+
+    const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [clientId]);
+    const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
+    const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
+
+    const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]);
+    const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [clientId]);
+
+    client.physicalAddress = physicalAddress;
+    client.mailingAddress = mailingAddress;
+    client.immigrationDetails = immigrationRows[0] ?? {};
+    client.incomeSources = incomeRows;
 
     const [templateRows]: any = await db.execute(
       'SELECT id, content, name FROM document_templates WHERE id = ? LIMIT 1',
@@ -33,11 +46,16 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     }
     const template = templateRows[0];
 
+    const [agentRows]: any = await db.execute('SELECT * FROM agents WHERE id = ?', [client.agent_id]);
+    const agent = agentRows[0];
+
+    const personalizedContent = replaceDynamicTags(template.content, { client, agent });
+
     const [result]: any = await db.execute(
       `INSERT INTO signed_documents
        (client_id, template_id, content, sent_by_id, status, created_at)
        VALUES (?, ?, ?, ?, 'pendiente', NOW())`,
-      [clientId, templateId, template.content, sentById]
+      [clientId, templateId, personalizedContent, sentById]
     );
 
     const documentId = result.insertId;
