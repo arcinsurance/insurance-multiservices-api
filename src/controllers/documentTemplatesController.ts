@@ -1,4 +1,3 @@
-// src/controllers/documentTemplatesController.ts
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 
@@ -16,12 +15,23 @@ export const getAllDocumentTemplates = async (req: Request, res: Response) => {
 // Crear una nueva plantilla de documento
 export const createDocumentTemplate = async (req: Request, res: Response) => {
   try {
-    const { name, content } = req.body;
+    const { name, category, content } = req.body;
+
+    if (!name || !category || !content) {
+      return res.status(400).json({ error: 'Name, category, and content are required' });
+    }
+
     const [result] = await db.query(
-      'INSERT INTO document_templates (name, content) VALUES (?, ?)',
-      [name, content]
+      'INSERT INTO document_templates (name, category, content, created_at) VALUES (?, ?, ?, NOW())',
+      [name, category, content]
     );
-    res.status(201).json({ id: (result as any).insertId, name, content });
+
+    res.status(201).json({
+      id: (result as any).insertId,
+      name,
+      category,
+      content
+    });
   } catch (error) {
     console.error('Error creating document template:', error);
     res.status(500).json({ error: 'Error creating document template' });
@@ -32,12 +42,18 @@ export const createDocumentTemplate = async (req: Request, res: Response) => {
 export const updateDocumentTemplate = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, content } = req.body;
+    const { name, category, content } = req.body;
+
+    if (!name || !category || !content) {
+      return res.status(400).json({ error: 'Name, category, and content are required' });
+    }
+
     await db.query(
-      'UPDATE document_templates SET name = ?, content = ? WHERE id = ?',
-      [name, content, id]
+      'UPDATE document_templates SET name = ?, category = ?, content = ? WHERE id = ?',
+      [name, category, content, id]
     );
-    res.json({ id, name, content });
+
+    res.json({ id, name, category, content });
   } catch (error) {
     console.error('Error updating document template:', error);
     res.status(500).json({ error: 'Error updating document template' });
