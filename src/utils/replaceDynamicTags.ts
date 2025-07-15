@@ -1,53 +1,52 @@
-interface ClientData {
-  name: string;
-  email?: string;
-  phone?: string;
-  date_of_birth?: string;
-  preferred_language?: string;
-  physicalAddress?: {
-    line1?: string;
-    city?: string;
-    state?: string;
-    zip_code?: string;
+type DynamicData = {
+  client: any;
+  agent: any;
+};
+
+export const replaceDynamicTags = (template: string, data: DynamicData): string => {
+  const { client, agent } = data;
+
+  const maskedSSN = client?.ssn ? maskSSN(client.ssn) : '';
+
+  const replacements: Record<string, string> = {
+    '{{client_name}}': client?.name || '',
+    '{{client_dob}}': client?.dob || '',
+    '{{client_phone}}': client?.phone || '',
+    '{{client_email}}': client?.email || '',
+    '{{client_ssn}}': maskedSSN,
+    '{{client_physical_address}}': formatAddress(client?.physicalAddress),
+    '{{client_mailing_address}}': formatAddress(client?.mailingAddress),
+    '{{agent_name}}': agent?.name || '',
+    '{{agent_npn}}': agent?.npn || '',
+    '{{agent_phone}}': agent?.phone || '',
+    '{{agent_email}}': agent?.email || '',
+    '{{policy_market_id}}': client?.policy_market_id || '',
+    '{{current_year}}': new Date().getFullYear().toString(),
+    '{{current_date}}': new Date().toISOString().split('T')[0],
   };
-  assigned_agent_full_name?: string;
-  agent_npn?: string;
-}
 
-export function replaceDynamicTags(template: string, client: ClientData): string {
   let result = template;
-
-  // Utilidad de reemplazo segura
-  const safeReplace = (str: string, search: string, replacement: string = '') =>
-    str.split(search).join(replacement);
-
-  // Datos del cliente
-  result = safeReplace(result, '{{client_name}}', client.name);
-  result = safeReplace(result, '{{client_email}}', client.email || '');
-  result = safeReplace(result, '{{client_phone}}', client.phone || '');
-  result = safeReplace(result, '{{client_dob}}', client.date_of_birth || '');
-  result = safeReplace(result, '{{client_language}}', client.preferred_language || '');
-
-  // Dirección física
-  if (client.physicalAddress) {
-    const { line1 = '', city = '', state = '', zip_code = '' } = client.physicalAddress;
-    const address = [line1, city, state, zip_code].filter(Boolean).join(', ');
-    result = safeReplace(result, '{{client_address1}}', address);
-  } else {
-    result = safeReplace(result, '{{client_address1}}', '');
+  for (const [tag, value] of Object.entries(replacements)) {
+    result = result.replaceAll(tag, value);
   }
 
-  // Datos del agente
-  result = safeReplace(result, '{{agent_name}}', client.assigned_agent_full_name || '');
-  result = safeReplace(result, '{{agent_npn}}', client.agent_npn || '');
-
-  // Datos del sistema
-  const today = new Date();
-  const currentYear = today.getFullYear().toString();
-  const currentDate = today.toISOString().split('T')[0];
-
-  result = safeReplace(result, '{{current_year}}', currentYear);
-  result = safeReplace(result, '{{current_date}}', currentDate);
-
   return result;
-}
+};
+
+// Helper: Formatear dirección completa
+const formatAddress = (address: any): string => {
+  if (!address) return '';
+  const parts = [
+    address.street || '',
+    address.city || '',
+    address.state || '',
+    address.zip || ''
+  ].filter(Boolean);
+  return parts.join(', ');
+};
+
+// Helper: Enmascarar SSN
+const maskSSN = (ssn: string): string => {
+  if (!ssn || ssn.length < 4) return '***-**-****';
+  return `***-**-${ssn.slice(-4)}`;
+};
