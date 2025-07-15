@@ -1,10 +1,10 @@
-
 export function replaceDynamicTags(template: string, data: any): string {
   let result = template;
 
   const client = data.client || {};
   const agent = data.agent || {};
 
+  // CLIENTE
   result = result.split('{{client_name}}').join(client.name || '');
   result = result.split('{{client_dob}}').join(client.dob || '');
   result = result.split('{{client_phone}}').join(client.phone || '');
@@ -26,14 +26,24 @@ export function replaceDynamicTags(template: string, data: any): string {
     client.immigrationDetails?.entry_date || ''
   );
 
+  // AGENTE
   result = result.split('{{agent_name}}').join(agent.name || '');
   result = result.split('{{agent_npn}}').join(agent.npn || '');
   result = result.split('{{agent_phone}}').join(agent.phone || '');
   result = result.split('{{agent_email}}').join(agent.email || '');
 
+  // FECHA
   const today = new Date();
+  const currentDate = today.toLocaleDateString('es-ES');
+  const currentDateTime = today.toLocaleString('es-ES', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'America/New_York',
+  });
+
   result = result.split('{{current_year}}').join(today.getFullYear().toString());
-  result = result.split('{{current_date}}').join(today.toLocaleDateString());
+  result = result.split('{{current_date}}').join(currentDate);
+  result = result.split('{{current_datetime}}').join(currentDateTime);
 
   return result;
 }
