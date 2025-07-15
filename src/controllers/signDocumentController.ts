@@ -49,13 +49,31 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const [agentRows]: any = await db.execute('SELECT * FROM agents WHERE id = ?', [client.agent_id]);
     const agent = agentRows[0];
 
-    const personalizedContent = replaceDynamicTags(template.content, { ...client, ...agent });
+    const combinedData = { ...client, ...agent };
+
+    const originalContent = replaceDynamicTags(template.content, combinedData);
+
+    const header = `
+      <div style="border-bottom:1px solid #ccc; padding-bottom:10px; margin-bottom:20px;">
+        <h2 style="margin:0; font-size:1.4em;">Insurance Multiservices</h2>
+        <p style="margin:0;">7902 W Waters Ave. Ste Tampa, FL 33615</p>
+        <p style="margin:0;">Tel: (813) 885-5296</p>
+      </div>
+    `;
+
+    const footer = `
+      <div style="border-top:1px solid #ccc; padding-top:10px; margin-top:20px; font-size:0.85em; color:#555;">
+        <p>Este documento ha sido generado por Insurance Multiservices para fines de consentimiento y verificación del cliente.</p>
+      </div>
+    `;
+
+    const fullContent = `${header}${originalContent}${footer}`;
 
     const [result]: any = await db.execute(
       `INSERT INTO signed_documents
        (client_id, template_id, content, sent_by_id, status, created_at)
        VALUES (?, ?, ?, ?, 'pendiente', NOW())`,
-      [clientId, templateId, personalizedContent, sentById]
+      [clientId, templateId, fullContent, sentById]
     );
 
     const documentId = result.insertId;
