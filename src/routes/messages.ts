@@ -27,8 +27,8 @@ router.post(
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
         auth: {
-          user: 'TUCORREO@gmail.com',    // Cambia por tu email real
-          pass: 'TU_CONTRASEÑA_APP'      // Contraseña de aplicación de Gmail
+          user: 'arc.insurancemultiservices@gmail.com',    // Cambia por tu email real
+          pass: 'kssebtegxtywlsbt'      // Contraseña de aplicación de Gmail
         }
       });
 
