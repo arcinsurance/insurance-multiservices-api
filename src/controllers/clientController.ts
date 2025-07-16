@@ -185,16 +185,33 @@ export async function updateClientImmigration(req: Request, res: Response) {
   try {
     await db.execute('DELETE FROM immigration_details WHERE client_id = ?', [clientId]);
 
-    if (data.status || data.category || data.ssn || data.uscisNumber) {
+    // Inserta todos los campos relevantes de migración
+    if (
+      data.status || data.category || data.ssn || data.ssnIssuedDate ||
+      data.uscisNumber || data.passportNumber || data.greenCardNumber ||
+      data.greenCardExpiryDate || data.workPermitCardNumber || data.workPermitExpiryDate ||
+      data.driverLicenseNumber || data.driverLicenseExpiryDate
+    ) {
       await db.execute(
-        `INSERT INTO immigration_details (client_id, status, category, ssn, uscis_number)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO immigration_details (
+          client_id, status, category, ssn, ssn_issued_date, uscis_number, passport_number,
+          green_card_number, green_card_expiry_date, work_permit_card_number, work_permit_expiry_date,
+          driver_license_number, driver_license_expiry_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           data.status ?? null,
           data.category ?? null,
           data.ssn ?? null,
-          data.uscisNumber ?? null
+          data.ssnIssuedDate ?? null,
+          data.uscisNumber ?? null,
+          data.passportNumber ?? null,
+          data.greenCardNumber ?? null,
+          data.greenCardExpiryDate ?? null,
+          data.workPermitCardNumber ?? null,
+          data.workPermitExpiryDate ?? null,
+          data.driverLicenseNumber ?? null,
+          data.driverLicenseExpiryDate ?? null
         ]
       );
     }
@@ -220,32 +237,40 @@ export async function updateClientAddresses(req: Request, res: Response) {
   try {
     await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
 
+    // Physical Address
     if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
       await db.execute(
-        `INSERT INTO addresses (client_id, type, line1, line2, city, state, zip_code)
-         VALUES (?, 'physical', ?, ?, ?, ?, ?)`,
+        `INSERT INTO addresses (
+          client_id, type, line1, line2, city, state, zip_code, country, county
+        ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           physicalAddress.line1 ?? null,
           physicalAddress.line2 ?? null,
           physicalAddress.city ?? null,
           physicalAddress.state ?? null,
-          physicalAddress.zipCode ?? null
+          physicalAddress.zipCode ?? null,
+          physicalAddress.country ?? null,
+          physicalAddress.county ?? null
         ]
       );
     }
 
+    // Mailing Address (solo si es diferente)
     if (!mailingAddressSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
       await db.execute(
-        `INSERT INTO addresses (client_id, type, line1, line2, city, state, zip_code)
-         VALUES (?, 'mailing', ?, ?, ?, ?, ?)`,
+        `INSERT INTO addresses (
+          client_id, type, line1, line2, city, state, zip_code, country, county
+        ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           mailingAddress.line1 ?? null,
           mailingAddress.line2 ?? null,
           mailingAddress.city ?? null,
           mailingAddress.state ?? null,
-          mailingAddress.zipCode ?? null
+          mailingAddress.zipCode ?? null,
+          mailingAddress.country ?? null,
+          mailingAddress.county ?? null
         ]
       );
     }
