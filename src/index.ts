@@ -11,7 +11,7 @@ import changePasswordRoute from './routes/changePassword';
 import productCategoryRoutes from './routes/productCategories';
 import policyRoutes from './routes/policies';
 import documentRoutes from './routes/documents';
-import messageRoutes from './routes/messages';
+import messageRoutes from './routes/messages';  // <-- Aquí está el router mensajes
 import signedDocumentsRoutes from './routes/signedDocuments';  // ✅ Envío y firma de documentos
 import settingsRoutes from './routes/settingsRoutes';
 
@@ -51,7 +51,7 @@ app.use('/api/auth', changePasswordRoute);
 app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/documents', documentRoutes);
-app.use('/api/messages', messageRoutes);
+app.use('/api/messages', messageRoutes);  // <-- Aquí se usa el router mensajes
 app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ Ruta para firma de documentos
 app.use('/api/settings', settingsRoutes);
 app.use('/api/document-templates', documentTemplatesRoutes);
