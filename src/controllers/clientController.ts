@@ -185,19 +185,19 @@ export async function updateClientImmigration(req: Request, res: Response) {
   try {
     await db.execute('DELETE FROM immigration_details WHERE client_id = ?', [clientId]);
 
-    // Inserta todos los campos relevantes de migración
+    // Inserta todos los campos relevantes de migración, incluyendo 'other_note'
     if (
       data.status || data.category || data.ssn || data.ssnIssuedDate ||
       data.uscisNumber || data.passportNumber || data.greenCardNumber ||
       data.greenCardExpiryDate || data.workPermitCardNumber || data.workPermitExpiryDate ||
-      data.driverLicenseNumber || data.driverLicenseExpiryDate
+      data.driverLicenseNumber || data.driverLicenseExpiryDate || data.otherNote
     ) {
       await db.execute(
         `INSERT INTO immigration_details (
           client_id, status, category, ssn, ssn_issued_date, uscis_number, passport_number,
           green_card_number, green_card_expiry_date, work_permit_card_number, work_permit_expiry_date,
-          driver_license_number, driver_license_expiry_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          driver_license_number, driver_license_expiry_date, other_note
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           data.status ?? null,
@@ -211,7 +211,8 @@ export async function updateClientImmigration(req: Request, res: Response) {
           data.workPermitCardNumber ?? null,
           data.workPermitExpiryDate ?? null,
           data.driverLicenseNumber ?? null,
-          data.driverLicenseExpiryDate ?? null
+          data.driverLicenseExpiryDate ?? null,
+          data.otherNote ?? null
         ]
       );
     }
