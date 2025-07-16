@@ -6,10 +6,16 @@ import { sendMessage, getMessages } from '../controllers/messageController';
 const router = express.Router();
 const upload = multer();
 
+// Ruta de prueba para verificar que el router funciona
+router.get('/test', (req: Request, res: Response) => {
+  res.json({ message: 'Ruta mensajes activa' });
+});
+
+// Rutas existentes
 router.post('/', sendMessage);
 router.get('/', getMessages);
 
-// --- NUEVO: Enviar PDF de perfil de cliente por email ---
+// Enviar PDF de perfil de cliente por email
 router.post(
   '/send-email',
   upload.single('file'),
@@ -18,7 +24,6 @@ router.post(
       const { to, subject, body } = req.body;
       const file = req.file;
 
-      // Configura el transporte de correo
       const transporter = nodemailer.createTransport({
         service: 'Gmail',
         auth: {
