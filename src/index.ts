@@ -56,6 +56,10 @@ app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ Ruta para firma 
 app.use('/api/settings', settingsRoutes);
 app.use('/api/document-templates', documentTemplatesRoutes);
 
+/* ───────────── Endpoint de prueba ───────────── */
+app.get('/api/messages/test', (req, res) => {
+  res.json({ message: 'Ruta mensajes activa' });
+});
 
 /* ───────────── Puerto ───────────── */
 const PORT = process.env.PORT || 3000;
