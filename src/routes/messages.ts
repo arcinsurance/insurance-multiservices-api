@@ -6,13 +6,12 @@ import { sendMessage, getMessages } from '../controllers/messageController';
 const router = express.Router();
 const upload = multer();
 
-// --- Mensajes normales (esto ya lo tienes) ---
 router.post('/', sendMessage);
 router.get('/', getMessages);
 
 // --- NUEVO: Enviar PDF de perfil de cliente por email ---
 router.post(
-  '/api/send-email',
+  '/send-email',
   upload.single('file'),
   async (req: Request & { file?: Express.Multer.File }, res: Response) => {
     try {
