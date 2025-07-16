@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
-import nodemailer from 'nodemailer';
+import { sendEmailWithAttachment } from '../utils/emailService';  // Importa la función de envío
+
 import { sendMessage, getMessages } from '../controllers/messageController';
 
 const router = express.Router();
@@ -15,7 +16,7 @@ router.get('/test', (req: Request, res: Response) => {
 router.post('/', sendMessage);
 router.get('/', getMessages);
 
-// Enviar PDF de perfil de cliente por email
+// Enviar PDF de perfil de cliente por email con adjunto
 router.post(
   '/send-email',
   upload.single('file'),
@@ -24,25 +25,14 @@ router.post(
       const { to, subject, body } = req.body;
       const file = req.file;
 
-      const transporter = nodemailer.createTransport({
-        service: 'Gmail',
-        auth: {
-          user: 'arc.insurancemultiservices@gmail.com',    // Cambia por tu email real
-          pass: 'kssebtegxtywlsbt'      // Contraseña de aplicación de Gmail
-        }
+      if (!file) {
+        return res.status(400).json({ error: 'No se envió ningún archivo.' });
+      }
+
+      await sendEmailWithAttachment(to, subject, body, {
+        filename: file.originalname,
+        content: file.buffer,
       });
-
-      const mailOptions = {
-        from: 'TUCORREO@gmail.com',
-        to,
-        subject,
-        text: body,
-        attachments: file
-          ? [{ filename: file.originalname, content: file.buffer }]
-          : []
-      };
-
-      await transporter.sendMail(mailOptions);
 
       res.json({ ok: true });
     } catch (error: any) {
