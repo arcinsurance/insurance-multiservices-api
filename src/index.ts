@@ -2,8 +2,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import documentTemplatesRoutes from './routes/documentTemplates';
 
+import documentTemplatesRoutes from './routes/documentTemplates';
 import clientRoutes from './routes/clients';
 import agentRoutes from './routes/agents';
 import authRoutes from './routes/auth';
