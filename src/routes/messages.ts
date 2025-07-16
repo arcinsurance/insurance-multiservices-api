@@ -1,22 +1,17 @@
+// src/routes/messages.ts
 import express, { Request, Response } from 'express';
 import multer from 'multer';
-import { sendEmailWithAttachment } from '../utils/emailService';  // Importa la función de envío
-
-import { sendMessage, getMessages } from '../controllers/messageController';
+import { sendEmail } from '../utils/emailService';
 
 const router = express.Router();
 const upload = multer();
 
-// Ruta de prueba para verificar que el router funciona
-router.get('/test', (req: Request, res: Response) => {
-  res.json({ message: 'Ruta mensajes activa' });
-});
-
 // Rutas existentes
+import { sendMessage, getMessages } from '../controllers/messageController';
 router.post('/', sendMessage);
 router.get('/', getMessages);
 
-// Enviar PDF de perfil de cliente por email con adjunto
+// Ruta para enviar PDF adjunto vía email usando emailService.ts
 router.post(
   '/send-email',
   upload.single('file'),
@@ -25,14 +20,17 @@ router.post(
       const { to, subject, body } = req.body;
       const file = req.file;
 
-      if (!file) {
-        return res.status(400).json({ error: 'No se envió ningún archivo.' });
+      if (!to || !subject) {
+        return res.status(400).json({ error: 'Faltan campos obligatorios: to o subject' });
       }
 
-      await sendEmailWithAttachment(to, subject, body, {
-        filename: file.originalname,
-        content: file.buffer,
-      });
+      if (file) {
+        // Enviar email con adjunto
+        await sendEmailWithAttachment(to, subject, body, file);
+      } else {
+        // Enviar email sin adjunto
+        await sendEmail(to, subject, body);
+      }
 
       res.json({ ok: true });
     } catch (error: any) {
@@ -41,5 +39,42 @@ router.post(
     }
   }
 );
+
+// Función para enviar email con archivo adjunto usando transporter de emailService.ts
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT ?? '465', 10),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+async function sendEmailWithAttachment(
+  to: string,
+  subject: string,
+  text: string,
+  file: Express.Multer.File
+): Promise<void> {
+  const mailOptions = {
+    from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
+    to,
+    subject,
+    text,
+    attachments: [
+      {
+        filename: file.originalname,
+        content: file.buffer,
+      },
+    ],
+  };
+
+  await transporter.sendMail(mailOptions);
+}
 
 export default router;
