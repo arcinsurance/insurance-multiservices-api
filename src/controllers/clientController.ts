@@ -110,15 +110,30 @@ export async function getClientById(req: Request, res: Response) {
       return res.status(404).json({ message: 'Client not found' });
     }
 
+    // Query con columnas en snake_case para inmigración y dirección
     const [incomes] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [id]) as unknown as [any[], any];
     const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [id]) as unknown as [any[], any];
     const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [id]) as unknown as [any[], any];
 
     const client = clients[0];
+
     client.incomeSources = incomes;
-    client.immigrationDetails = immigration[0] ?? {};
-    client.physicalAddress = addresses.find((a: any) => a.type === 'physical') ?? {};
-    client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') ?? {};
+
+    // Mapear columnas SQL snake_case a camelCase para frontend
+    client.immigrationDetails = immigration[0] ? {
+      status: immigration[0].status || '',
+      category: immigration[0].category || '',
+      ssn: immigration[0].ssn || '',
+      uscisNumber: immigration[0].uscis_number || '',
+      greenCardNumber: immigration[0].green_card_number || '',
+      greenCardExpiryDate: immigration[0].green_card_expiry_date || '',
+      workPermitCardNumber: immigration[0].work_permit_card_number || '',
+      workPermitExpiryDate: immigration[0].work_permit_expiry_date || '',
+      otherNote: immigration[0].other_note || ''
+    } : {};
+
+    client.physicalAddress = addresses.find((a: any) => a.type === 'physical') || {};
+    client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') || {};
     client.mailingAddressSameAsPhysical = !addresses.some((a: any) => a.type === 'mailing');
 
     res.json(client);
@@ -185,17 +200,17 @@ export async function updateClientImmigration(req: Request, res: Response) {
   try {
     await db.execute('DELETE FROM immigration_details WHERE client_id = ?', [clientId]);
 
-    // Inserta todos los campos relevantes de migración, incluyendo 'other_note'
+    // Insertar solo campos necesarios y en snake_case
     if (
       data.status || data.category || data.ssn ||
-      data.uscisNumber || data.greenCardNumber ||
-      data.greenCardExpiryDate || data.workPermitCardNumber || data.workPermitExpiryDate ||
-      data.otherNote
+      data.uscisNumber || data.greenCardNumber || data.greenCardExpiryDate ||
+      data.workPermitCardNumber || data.workPermitExpiryDate || data.otherNote
     ) {
       await db.execute(
         `INSERT INTO immigration_details (
           client_id, status, category, ssn, uscis_number,
-          green_card_number, green_card_expiry_date, work_permit_card_number, work_permit_expiry_date,
+          green_card_number, green_card_expiry_date,
+          work_permit_card_number, work_permit_expiry_date,
           other_note
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -217,7 +232,17 @@ export async function updateClientImmigration(req: Request, res: Response) {
     const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]) as unknown as [any[], any];
     const client = clients[0] || null;
     if (client) {
-      client.immigrationDetails = immigration[0] ?? {};
+      client.immigrationDetails = immigration[0] ? {
+        status: immigration[0].status || '',
+        category: immigration[0].category || '',
+        ssn: immigration[0].ssn || '',
+        uscisNumber: immigration[0].uscis_number || '',
+        greenCardNumber: immigration[0].green_card_number || '',
+        greenCardExpiryDate: immigration[0].green_card_expiry_date || '',
+        workPermitCardNumber: immigration[0].work_permit_card_number || '',
+        workPermitExpiryDate: immigration[0].work_permit_expiry_date || '',
+        otherNote: immigration[0].other_note || ''
+      } : {};
     }
     res.status(200).json(client);
   } catch (error) {
@@ -234,7 +259,7 @@ export async function updateClientAddresses(req: Request, res: Response) {
   try {
     await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
 
-    // Physical Address
+    // Dirección física
     if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
       await db.execute(
         `INSERT INTO addresses (
@@ -253,7 +278,7 @@ export async function updateClientAddresses(req: Request, res: Response) {
       );
     }
 
-    // Mailing Address (solo si es diferente)
+    // Dirección de correspondencia (solo si es diferente)
     if (!mailingAddressSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
       await db.execute(
         `INSERT INTO addresses (
@@ -276,8 +301,8 @@ export async function updateClientAddresses(req: Request, res: Response) {
     const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]) as unknown as [any[], any];
     const client = clients[0] || null;
     if (client) {
-      client.physicalAddress = addresses.find((a: any) => a.type === 'physical') ?? {};
-      client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') ?? {};
+      client.physicalAddress = addresses.find((a: any) => a.type === 'physical') || {};
+      client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') || {};
       client.mailingAddressSameAsPhysical = !addresses.some((a: any) => a.type === 'mailing');
     }
     res.status(200).json(client);
