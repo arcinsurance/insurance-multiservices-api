@@ -260,17 +260,15 @@ export async function updateClientAddresses(req: Request, res: Response) {
     if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
       await db.execute(
         `INSERT INTO addresses (
-          client_id, type, line1, line2, city, state, zip_code, country, county
-        ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?, ?)`,
+          client_id, type, line1, line2, city, state, zip_code
+        ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           physicalAddress.line1 ?? null,
           physicalAddress.line2 ?? null,
           physicalAddress.city ?? null,
           physicalAddress.state ?? null,
-          physicalAddress.zipCode ?? null,
-          physicalAddress.country ?? null,
-          physicalAddress.county ?? null
+          physicalAddress.zipCode ?? null
         ]
       );
     }
@@ -279,17 +277,15 @@ export async function updateClientAddresses(req: Request, res: Response) {
     if (!mailingAddressSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
       await db.execute(
         `INSERT INTO addresses (
-          client_id, type, line1, line2, city, state, zip_code, country, county
-        ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?, ?)`,
+          client_id, type, line1, line2, city, state, zip_code
+        ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           mailingAddress.line1 ?? null,
           mailingAddress.line2 ?? null,
           mailingAddress.city ?? null,
           mailingAddress.state ?? null,
-          mailingAddress.zipCode ?? null,
-          mailingAddress.country ?? null,
-          mailingAddress.county ?? null
+          mailingAddress.zipCode ?? null
         ]
       );
     }
