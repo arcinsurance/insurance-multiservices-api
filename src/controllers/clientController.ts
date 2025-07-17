@@ -253,12 +253,14 @@ export async function updateClientAddresses(req: Request, res: Response) {
   const clientId = req.params.id;
   const { physicalAddress, mailingAddress, mailingAddressSameAsPhysical } = req.body;
 
+  console.log('Received update addresses request body:', req.body);
+
   try {
     await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
 
     // Dirección física
     if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
-      await db.execute(
+      const resPhysical = await db.execute(
         `INSERT INTO addresses (
           client_id, type, line1, line2, city, state, zip_code
         ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?)`,
@@ -271,11 +273,12 @@ export async function updateClientAddresses(req: Request, res: Response) {
           physicalAddress.zipCode ?? null
         ]
       );
+      console.log('Physical address insert result:', resPhysical);
     }
 
     // Dirección de correspondencia (solo si es diferente)
     if (!mailingAddressSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
-      await db.execute(
+      const resMailing = await db.execute(
         `INSERT INTO addresses (
           client_id, type, line1, line2, city, state, zip_code
         ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?)`,
@@ -288,6 +291,7 @@ export async function updateClientAddresses(req: Request, res: Response) {
           mailingAddress.zipCode ?? null
         ]
       );
+      console.log('Mailing address insert result:', resMailing);
     }
 
     const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as unknown as [any[], any];
@@ -301,6 +305,6 @@ export async function updateClientAddresses(req: Request, res: Response) {
     res.status(200).json(client);
   } catch (error) {
     console.error('Error updating addresses:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 }
