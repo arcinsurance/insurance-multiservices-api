@@ -264,27 +264,29 @@ export async function updateClientImmigration(req: Request, res: Response) {
 
 /* ─────────── ADDRESSES ─────────── */
 export async function updateClientAddresses(req: Request, res: Response) {
+  const clientId = req.params.id;
+  const { physicalAddress, mailingAddress, mailingAddressSameAsPhysical } = req.body;
+
+  console.log('Received update addresses request body:', req.body);
+
   try {
-    const clientId = req.params.id;
-    const { physicalAddress, mailingAddress, mailingAddressSameAsPhysical } = req.body;
-
-    console.log('Received update addresses request body:', req.body);
-
     await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
 
     // Dirección física
     if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
       const resPhysical = await db.execute(
         `INSERT INTO addresses (
-          client_id, type, line1, line2, city, state, zip_code
-        ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?)`,
+          client_id, type, line1, line2, city, state, zip_code, country, county
+        ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           physicalAddress.line1 ?? null,
           physicalAddress.line2 ?? null,
           physicalAddress.city ?? null,
           physicalAddress.state ?? null,
-          physicalAddress.zipCode ?? null
+          physicalAddress.zipCode ?? null,
+          physicalAddress.country ?? null,
+          physicalAddress.county ?? null
         ]
       );
       console.log('Physical address insert result:', resPhysical);
@@ -294,15 +296,17 @@ export async function updateClientAddresses(req: Request, res: Response) {
     if (!mailingAddressSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
       const resMailing = await db.execute(
         `INSERT INTO addresses (
-          client_id, type, line1, line2, city, state, zip_code
-        ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?)`,
+          client_id, type, line1, line2, city, state, zip_code, country, county
+        ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?, ?)`,
         [
           clientId,
           mailingAddress.line1 ?? null,
           mailingAddress.line2 ?? null,
           mailingAddress.city ?? null,
           mailingAddress.state ?? null,
-          mailingAddress.zipCode ?? null
+          mailingAddress.zipCode ?? null,
+          mailingAddress.country ?? null,
+          mailingAddress.county ?? null
         ]
       );
       console.log('Mailing address insert result:', resMailing);
