@@ -110,7 +110,6 @@ export async function getClientById(req: Request, res: Response) {
       return res.status(404).json({ message: 'Client not found' });
     }
 
-    // Query con columnas en snake_case para inmigración y dirección
     const [incomes] = await db.query('SELECT * FROM income_sources WHERE client_id = ?', [id]) as unknown as [any[], any];
     const [immigration] = await db.query('SELECT * FROM immigration_details WHERE client_id = ?', [id]) as unknown as [any[], any];
     const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [id]) as unknown as [any[], any];
@@ -119,7 +118,6 @@ export async function getClientById(req: Request, res: Response) {
 
     client.incomeSources = incomes;
 
-    // Mapear columnas SQL snake_case a camelCase para frontend
     client.immigrationDetails = immigration[0] ? {
       status: immigration[0].status || '',
       category: immigration[0].category || '',
@@ -200,7 +198,6 @@ export async function updateClientImmigration(req: Request, res: Response) {
   try {
     await db.execute('DELETE FROM immigration_details WHERE client_id = ?', [clientId]);
 
-    // Insertar solo campos necesarios y en snake_case
     if (
       data.status || data.category || data.ssn ||
       data.uscisNumber || data.greenCardNumber || data.greenCardExpiryDate ||
