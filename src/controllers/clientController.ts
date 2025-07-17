@@ -305,6 +305,7 @@ export async function updateClientAddresses(req: Request, res: Response) {
     res.status(200).json(client);
   } catch (error) {
     console.error('Error updating addresses:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    res.status(500).json({ message });
   }
 }
