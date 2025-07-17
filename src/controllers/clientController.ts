@@ -4,21 +4,26 @@ import { v4 as uuidv4 } from 'uuid';
 
 /* ─────────────── GET ALL ─────────────── */
 export async function getClients(_req: Request, res: Response) {
-  const [clients] = await db.query('SELECT * FROM clients ORDER BY date_added DESC') as unknown as [any[], any];
-  const [incomes] = await db.query('SELECT * FROM income_sources') as unknown as [any[], any];
-  const [immigrations] = await db.query('SELECT * FROM immigration_details') as unknown as [any[], any];
-  const [addresses] = await db.query('SELECT * FROM addresses') as unknown as [any[], any];
+  try {
+    const [clients] = await db.query('SELECT * FROM clients ORDER BY date_added DESC') as unknown as [any[], any];
+    const [incomes] = await db.query('SELECT * FROM income_sources') as unknown as [any[], any];
+    const [immigrations] = await db.query('SELECT * FROM immigration_details') as unknown as [any[], any];
+    const [addresses] = await db.query('SELECT * FROM addresses') as unknown as [any[], any];
 
-  const clientsWithDetails = clients.map(client => ({
-    ...client,
-    incomeSources: incomes.filter(i => i.client_id === client.id),
-    immigrationDetails: immigrations.find(i => i.client_id === client.id) || {},
-    physicalAddress: addresses.find(a => a.client_id === client.id && a.type === 'physical') || {},
-    mailingAddress: addresses.find(a => a.client_id === client.id && a.type === 'mailing') || {},
-    mailingAddressSameAsPhysical: !addresses.some(a => a.client_id === client.id && a.type === 'mailing')
-  }));
+    const clientsWithDetails = clients.map(client => ({
+      ...client,
+      incomeSources: incomes.filter(i => i.client_id === client.id),
+      immigrationDetails: immigrations.find(i => i.client_id === client.id) || {},
+      physicalAddress: addresses.find(a => a.client_id === client.id && a.type === 'physical') || {},
+      mailingAddress: addresses.find(a => a.client_id === client.id && a.type === 'mailing') || {},
+      mailingAddressSameAsPhysical: !addresses.some(a => a.client_id === client.id && a.type === 'mailing')
+    }));
 
-  res.json(clientsWithDetails);
+    res.json(clientsWithDetails);
+  } catch (error) {
+    console.error('Error getting clients:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 /* ─────────────── CREATE ─────────────── */
@@ -68,43 +73,53 @@ export async function createClient(req: Request, res: Response) {
 
 /* ─────────────── UPDATE ─────────────── */
 export async function updateClient(req: Request, res: Response) {
-  const { id } = req.params;
-  const {
-    firstName, middleName, lastName, lastName2,
-    email, phone, dateOfBirth, gender, preferredLanguage,
-    isTobaccoUser, isPregnant, isLead
-  } = req.body;
+  try {
+    const { id } = req.params;
+    const {
+      firstName, middleName, lastName, lastName2,
+      email, phone, dateOfBirth, gender, preferredLanguage,
+      isTobaccoUser, isPregnant, isLead
+    } = req.body;
 
-  const fullName = [firstName, middleName, lastName, lastName2].filter(Boolean).join(' ');
+    const fullName = [firstName, middleName, lastName, lastName2].filter(Boolean).join(' ');
 
-  await db.execute(
-    `UPDATE clients SET
-      first_name = ?, middle_name = ?, last_name = ?, last_name_2 = ?,
-      email = ?, phone = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
-      is_tobacco_user = ?, is_pregnant = ?, is_lead = ?, name = ?
-     WHERE id = ?`,
-    [
-      firstName, middleName ?? null, lastName, lastName2 ?? null,
-      email ?? null, phone ?? null, dateOfBirth ?? null, gender ?? null, preferredLanguage ?? null,
-      isTobaccoUser ?? false, isPregnant ?? false, isLead ?? false,
-      fullName, id
-    ]
-  );
+    await db.execute(
+      `UPDATE clients SET
+        first_name = ?, middle_name = ?, last_name = ?, last_name_2 = ?,
+        email = ?, phone = ?, date_of_birth = ?, gender = ?, preferred_language = ?,
+        is_tobacco_user = ?, is_pregnant = ?, is_lead = ?, name = ?
+       WHERE id = ?`,
+      [
+        firstName, middleName ?? null, lastName, lastName2 ?? null,
+        email ?? null, phone ?? null, dateOfBirth ?? null, gender ?? null, preferredLanguage ?? null,
+        isTobaccoUser ?? false, isPregnant ?? false, isLead ?? false,
+        fullName, id
+      ]
+    );
 
-  res.sendStatus(204);
+    res.sendStatus(204);
+  } catch (error) {
+    console.error('Error updating client:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 /* ─────────────── DELETE ─────────────── */
 export async function deleteClient(req: Request, res: Response) {
-  await db.execute('DELETE FROM clients WHERE id = ?', [req.params.id]);
-  res.sendStatus(204);
+  try {
+    await db.execute('DELETE FROM clients WHERE id = ?', [req.params.id]);
+    res.sendStatus(204);
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 /* ─────────── GET BY ID ─────────── */
 export async function getClientById(req: Request, res: Response) {
-  const { id } = req.params;
-
   try {
+    const { id } = req.params;
+
     const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [id]) as unknown as [any[], any];
     if (clients.length === 0) {
       return res.status(404).json({ message: 'Client not found' });
@@ -135,26 +150,26 @@ export async function getClientById(req: Request, res: Response) {
     client.mailingAddressSameAsPhysical = !addresses.some((a: any) => a.type === 'mailing');
 
     res.json(client);
-  } catch (err) {
-    console.error('Error fetching client by ID:', err);
+  } catch (error) {
+    console.error('Error fetching client by ID:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
 
 /* ─────────── EMPLOYMENT ─────────── */
 export async function updateClientEmployment(req: Request, res: Response) {
-  const clientId = req.params.id;
-  let employmentData = req.body;
-
-  if (employmentData && employmentData.incomeSources) {
-    employmentData = employmentData.incomeSources;
-  }
-
-  if (!Array.isArray(employmentData)) {
-    employmentData = [employmentData];
-  }
-
   try {
+    const clientId = req.params.id;
+    let employmentData = req.body;
+
+    if (employmentData && employmentData.incomeSources) {
+      employmentData = employmentData.incomeSources;
+    }
+
+    if (!Array.isArray(employmentData)) {
+      employmentData = [employmentData];
+    }
+
     await db.execute('DELETE FROM income_sources WHERE client_id = ?', [clientId]);
 
     const validSources = employmentData.filter(
@@ -183,7 +198,6 @@ export async function updateClientEmployment(req: Request, res: Response) {
       client.incomeSources = income;
     }
     res.status(200).json(client);
-
   } catch (error) {
     console.error('Error updating employment:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -192,10 +206,10 @@ export async function updateClientEmployment(req: Request, res: Response) {
 
 /* ─────────── IMMIGRATION ─────────── */
 export async function updateClientImmigration(req: Request, res: Response) {
-  const clientId = req.params.id;
-  const data = req.body;
-
   try {
+    const clientId = req.params.id;
+    const data = req.body;
+
     await db.execute('DELETE FROM immigration_details WHERE client_id = ?', [clientId]);
 
     if (
@@ -250,12 +264,12 @@ export async function updateClientImmigration(req: Request, res: Response) {
 
 /* ─────────── ADDRESSES ─────────── */
 export async function updateClientAddresses(req: Request, res: Response) {
-  const clientId = req.params.id;
-  const { physicalAddress, mailingAddress, mailingAddressSameAsPhysical } = req.body;
-
-  console.log('Received update addresses request body:', req.body);
-
   try {
+    const clientId = req.params.id;
+    const { physicalAddress, mailingAddress, mailingAddressSameAsPhysical } = req.body;
+
+    console.log('Received update addresses request body:', req.body);
+
     await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
 
     // Dirección física
