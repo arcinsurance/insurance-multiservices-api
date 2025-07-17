@@ -130,10 +130,9 @@ export async function getClientById(req: Request, res: Response) {
       otherNote: immigration[0].other_note || ''
     } : {};
 
-    // CORRECCIÓN EN LA PARTE DE DIRECCIÓN:
     client.physicalAddress = addresses.find((a: any) => a.type === 'physical') || {};
     client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') || {};
-    client.mailingAddressSameAsPhysical = addresses.every((a: any) => a.type !== 'mailing');
+    client.mailingAddressSameAsPhysical = !addresses.some((a: any) => a.type === 'mailing');
 
     res.json(client);
   } catch (err) {
@@ -301,7 +300,7 @@ export async function updateClientAddresses(req: Request, res: Response) {
     if (client) {
       client.physicalAddress = addresses.find((a: any) => a.type === 'physical') || {};
       client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') || {};
-      client.mailingAddressSameAsPhysical = addresses.every((a: any) => a.type !== 'mailing');
+      client.mailingAddressSameAsPhysical = !addresses.some((a: any) => a.type === 'mailing');
     }
     res.status(200).json(client);
   } catch (error) {
