@@ -262,75 +262,53 @@ export async function updateClientImmigration(req: Request, res: Response) {
   }
 }
 
-/* ─────────── ADDRESSES ─────────── */
+/* ─────────── ADDRESSES (MODIFICADO) ─────────── */
 export async function updateClientAddresses(req: Request, res: Response) {
   const clientId = req.params.id;
-  const { physicalAddress, mailingAddress, mailingAddressSameAsPhysical } = req.body;
+  const { addresses } = req.body;
 
   console.log('🟡 Body recibido en dirección:', req.body);
 
   try {
     await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
 
-    if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
-      try {
-        const [resPhysical] = await db.execute(
-          `INSERT INTO addresses (
-            client_id, type, line1, line2, city, state, zip_code, country, county
-          ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            clientId,
-            physicalAddress.line1 ?? null,
-            physicalAddress.line2 ?? null,
-            physicalAddress.city ?? null,
-            physicalAddress.state ?? null,
-            physicalAddress.zipCode ?? null,
-            physicalAddress.country ?? null,
-            physicalAddress.county ?? null
-          ]
-        );
-        console.log('✅ Dirección física insertada:', resPhysical);
-      } catch (err) {
-        console.error('❌ Error insertando dirección física:', err);
-      }
-    }
-
-    if (!mailingAddressSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
-      try {
-        const [resMailing] = await db.execute(
-          `INSERT INTO addresses (
-            client_id, type, line1, line2, city, state, zip_code, country, county
-          ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            clientId,
-            mailingAddress.line1 ?? null,
-            mailingAddress.line2 ?? null,
-            mailingAddress.city ?? null,
-            mailingAddress.state ?? null,
-            mailingAddress.zipCode ?? null,
-            mailingAddress.country ?? null,
-            mailingAddress.county ?? null
-          ]
-        );
-        console.log('✅ Dirección postal insertada:', resMailing);
-      } catch (err) {
-        console.error('❌ Error insertando dirección postal:', err);
+    if (Array.isArray(addresses)) {
+      for (const addr of addresses) {
+        if (addr?.line1 || addr?.city || addr?.zip_code) {
+          const [insertResult] = await db.execute(
+            `INSERT INTO addresses (
+              client_id, type, line1, line2, city, state, zip_code, country, county
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              clientId,
+              addr.type ?? null,
+              addr.line1 ?? null,
+              addr.line2 ?? null,
+              addr.city ?? null,
+              addr.state ?? null,
+              addr.zip_code ?? null,
+              addr.country ?? null,
+              addr.county ?? null
+            ]
+          );
+          console.log(`✅ Dirección ${addr.type} insertada`);
+        }
       }
     }
 
     const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as unknown as [any[], any];
-    const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]) as unknown as [any[], any];
+    const [savedAddresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]) as unknown as [any[], any];
     const client = clients[0] || null;
 
     if (client) {
-      client.physicalAddress = addresses.find((a: any) => a.type === 'physical') || {};
-      client.mailingAddress = addresses.find((a: any) => a.type === 'mailing') || {};
-      client.mailingAddressSameAsPhysical = !addresses.some((a: any) => a.type === 'mailing');
+      client.physicalAddress = savedAddresses.find((a: any) => a.type === 'physical') || {};
+      client.mailingAddress = savedAddresses.find((a: any) => a.type === 'mailing') || {};
+      client.mailingAddressSameAsPhysical = !savedAddresses.some((a: any) => a.type === 'mailing');
     }
 
     res.status(200).json(client);
   } catch (error) {
-    console.error('❌ Error general actualizando direcciones:', error);
+    console.error('❌ Error actualizando direcciones:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
