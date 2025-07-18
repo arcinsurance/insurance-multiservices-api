@@ -270,23 +270,10 @@ export async function updateClientAddresses(req: Request, res: Response) {
   console.log('Received update addresses request body:', req.body);
 
   try {
-    // Borra direcciones previas
     await db.execute('DELETE FROM addresses WHERE client_id = ?', [clientId]);
 
-    // Dirección física
     if (physicalAddress?.line1 || physicalAddress?.city || physicalAddress?.zipCode) {
-      console.log('Datos para insertar dirección física:', [
-        clientId,
-        physicalAddress.line1 ?? null,
-        physicalAddress.line2 ?? null,
-        physicalAddress.city ?? null,
-        physicalAddress.state ?? null,
-        physicalAddress.zipCode ?? null,
-        physicalAddress.country ?? null,
-        physicalAddress.county ?? null
-      ]);
-
-      const resPhysical = await db.execute(
+      const [resPhysical] = await db.execute(
         `INSERT INTO addresses (
           client_id, type, line1, line2, city, state, zip_code, country, county
         ) VALUES (?, 'physical', ?, ?, ?, ?, ?, ?, ?)`,
@@ -305,20 +292,8 @@ export async function updateClientAddresses(req: Request, res: Response) {
       console.log('Physical address insert result:', resPhysical);
     }
 
-    // Dirección de correspondencia (solo si es diferente)
     if (!mailingAddressSameAsPhysical && (mailingAddress?.line1 || mailingAddress?.city || mailingAddress?.zipCode)) {
-      console.log('Datos para insertar dirección mailing:', [
-        clientId,
-        mailingAddress.line1 ?? null,
-        mailingAddress.line2 ?? null,
-        mailingAddress.city ?? null,
-        mailingAddress.state ?? null,
-        mailingAddress.zipCode ?? null,
-        mailingAddress.country ?? null,
-        mailingAddress.county ?? null
-      ]);
-
-      const resMailing = await db.execute(
+      const [resMailing] = await db.execute(
         `INSERT INTO addresses (
           client_id, type, line1, line2, city, state, zip_code, country, county
         ) VALUES (?, 'mailing', ?, ?, ?, ?, ?, ?, ?)`,
@@ -337,7 +312,6 @@ export async function updateClientAddresses(req: Request, res: Response) {
       console.log('Mailing address insert result:', resMailing);
     }
 
-    // Obtener cliente actualizado con sus direcciones
     const [clients] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]) as unknown as [any[], any];
     const [addresses] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]) as unknown as [any[], any];
     const client = clients[0] || null;
@@ -349,11 +323,8 @@ export async function updateClientAddresses(req: Request, res: Response) {
     }
 
     res.status(200).json(client);
-
   } catch (error) {
     console.error('Error updating addresses:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ message });
+    res.status(500).json({ message: 'Internal server error' });
   }
 }
-
