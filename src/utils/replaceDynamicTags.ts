@@ -26,6 +26,11 @@ export function replaceDynamicTags(template: string, data: any): string {
     `<p><strong>Fecha de entrada:</strong> ${client.immigrationDetails?.entry_date || ''}</p>`
   );
 
+  // NUEVOS TAGS SOLICITADOS
+  result = result.split('{{client_address1}}').join(client.physicalAddress?.line1 || '');
+  result = result.split('{{client_occupation}}').join(client.incomeSources?.[0]?.source || '');
+  result = result.split('{{client_income}}').join(client.incomeSources?.[0]?.amount || '');
+
   // AGENTE
   result = result.split('{{agent_name}}').join(`<p><strong>Agente asignado:</strong> ${agent.name || ''}</p>`);
   result = result.split('{{agent_npn}}').join(`<p><strong>NPN del agente:</strong> ${agent.npn || ''}</p>`);
