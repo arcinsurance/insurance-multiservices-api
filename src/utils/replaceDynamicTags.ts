@@ -6,39 +6,39 @@ export function replaceDynamicTags(content: string, data: any): string {
   let result = content;
 
   // Dirección física
-  result = result.replace(/{{\s*client_address1\s*}}/g, client?.physicalAddress?.line1 || '');
+  result = result.replace('{{client_address1}}', client?.physicalAddress?.line1 || '');
 
-  // Ocupación principal
+  // Ocupación principal (toma la primera encontrada)
   const occupation =
-    client?.incomeSources?.find((src: any) => !!src.positionOccupation)?.positionOccupation || '';
-  result = result.replace(/{{\s*client_occupation\s*}}/g, occupation);
+    client.incomeSources?.find((src: any) => src.positionOccupation)?.positionOccupation || '';
+  result = result.replace('{{client_occupation}}', occupation);
 
   // Fuente de ingreso principal
   const incomeSource =
-    client?.incomeSources?.find((src: any) => !!src.employerOrSelfEmployed)?.employerOrSelfEmployed || '';
-  result = result.replace(/{{\s*client_income_source\s*}}/g, incomeSource);
+    client.incomeSources?.find((src: any) => src.employerOrSelfEmployed)?.employerOrSelfEmployed || '';
+  result = result.replace('{{client_income_source}}', incomeSource);
 
-  // Ingreso total estimado (usando annualIncome)
-  const totalIncome = client?.incomeSources?.reduce((acc: number, src: any) => {
-    const val = parseFloat(src.annualIncome || '0');
+  // Ingreso total estimado
+  const totalIncome = client.incomeSources?.reduce((acc: number, src: any) => {
+    const val = parseFloat(src.annualIncome);
     return acc + (isNaN(val) ? 0 : val);
   }, 0) || 0;
-  result = result.replace(/{{\s*client_income\s*}}/g, `$${totalIncome.toLocaleString('en-US')}`);
+  result = result.replace('{{client_income}}', `$${totalIncome.toLocaleString('en-US')}`);
 
   // Estatus migratorio
-  result = result.replace(/{{\s*client_immigration_status\s*}}/g, client?.immigrationDetails?.status || '');
+  result = result.replace('{{client_immigration_status}}', client.immigrationDetails?.status || '');
 
   // Fecha de entrada al país
-  result = result.replace(/{{\s*client_immigration_date\s*}}/g, client?.immigrationDetails?.entry_date || '');
+  result = result.replace('{{client_immigration_date}}', client.immigrationDetails?.entry_date || '');
 
   // Datos del agente
-  result = result.replace(/{{\s*agent_name\s*}}/g, agent?.name || '');
-  result = result.replace(/{{\s*agent_email\s*}}/g, agent?.email || '');
-  result = result.replace(/{{\s*agent_phone\s*}}/g, agent?.phone || '');
+  result = result.replace('{{agent_name}}', agent?.name || '');
+  result = result.replace('{{agent_email}}', agent?.email || '');
+  result = result.replace('{{agent_phone}}', agent?.phone || '');
 
   // Fecha y hora actual
   const now = new Date();
-  result = result.replace(/{{\s*current_datetime\s*}}/g, now.toLocaleString('es-US'));
+  result = result.replace('{{current_datetime}}', now.toLocaleString('es-US'));
 
   return result;
 }
