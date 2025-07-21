@@ -183,3 +183,54 @@ export const getSentDocuments = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+/* -------------------------------------------------------------------------- */
+/* 5. OBTENER DOCUMENTO INDIVIDUAL PARA FIRMA                                 */
+/* -------------------------------------------------------------------------- */
+export const getSignedDocumentById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [docRows]: any = await db.execute(
+      `SELECT sd.*, c.name AS client_name, a.name AS agent_name
+       FROM signed_documents sd
+       JOIN clients c ON sd.client_id = c.id
+       JOIN agents a ON c.agent_id = a.id
+       WHERE sd.id = ?`,
+      [id]
+    );
+
+    if (docRows.length === 0) {
+      return res.status(404).json({ error: 'Documento no encontrado' });
+    }
+
+    const document = docRows[0];
+
+    // 🔍 Obtener todos los datos relacionados del cliente
+    const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
+    const client = clientRows[0];
+
+    const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
+    const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
+    const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
+
+    const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
+    const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
+
+    client.physicalAddress = physicalAddress;
+    client.mailingAddress = mailingAddress;
+    client.immigrationDetails = immigrationRows[0] ?? {};
+    client.incomeSources = incomeRows;
+
+    const [agentRows]: any = await db.execute('SELECT * FROM agents WHERE id = ?', [client.agent_id]);
+    const agent = agentRows[0];
+
+    return res.status(200).json({
+      ...document,
+      client,
+      agent,
+    });
+  } catch (error) {
+    console.error('❌ Error al obtener documento firmado:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
