@@ -1,4 +1,5 @@
 // src/utils/replaceDynamicTags.ts
+
 export function replaceDynamicTags(template: string, data: any): string {
   let result = template;
 
@@ -16,9 +17,9 @@ export function replaceDynamicTags(template: string, data: any): string {
     currency: 'USD',
   });
 
-  // Obtener ocupación (primer cargo encontrado)
+  // Obtener ocupación (usa primero positionOccupation y luego source)
   const occupation =
-    client.incomeSources?.find((src: any) => !!src.position)?.position ||
+    client.incomeSources?.find((src: any) => !!src.positionOccupation)?.positionOccupation ||
     client.incomeSources?.find((src: any) => !!src.source)?.source ||
     '';
 
@@ -55,7 +56,7 @@ export function replaceDynamicTags(template: string, data: any): string {
   result = result.split('{{agent_phone}}').join(`<strong>${agent.phone || ''}</strong>`);
   result = result.split('{{agent_email}}').join(`<strong>${agent.email || ''}</strong>`);
 
-  // FECHA
+  // FECHAS
   const today = new Date();
   const currentDate = today.toLocaleDateString('es-ES');
   const currentDateTime = today.toLocaleString('es-ES', {
