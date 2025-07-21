@@ -6,7 +6,7 @@ import {
   signDocument,
   getSentDocuments,
   getSignedDocumentById,
-} from '../controllers/signDocumentsController';
+} from '../controllers/signDocumentController'; // ✅ corregido aquí
 
 const router = express.Router();
 
