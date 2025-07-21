@@ -4,7 +4,8 @@ import {
   sendDocumentForSignature,
   getPendingDocuments,
   signDocument,
-  getSentDocuments, // 👈 NUEVA FUNCIÓN IMPORTADA
+  getSentDocuments,
+  getSignedDocumentById, // ✅ IMPORTACIÓN AGREGADA
 } from '../controllers/signDocumentController';
 
 const router = express.Router();
@@ -15,10 +16,13 @@ router.post('/', sendDocumentForSignature);
 // Ruta para obtener los documentos pendientes de un cliente
 router.get('/:clientId', getPendingDocuments);
 
+// Ruta para obtener un documento individual por ID (para firmar)
+router.get('/view/:id', getSignedDocumentById); // ✅ NUEVA RUTA
+
 // Ruta para guardar la firma del documento
 router.post('/sign', signDocument);
 
-// 🆕 Ruta para obtener documentos enviados por un usuario (agente/admin)
+// Ruta para obtener documentos enviados por un usuario (agente/admin)
 router.get('/sent/:userId', getSentDocuments);
 
 export default router;
