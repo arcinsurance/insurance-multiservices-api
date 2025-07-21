@@ -11,18 +11,18 @@ export function replaceDynamicTags(content: string, data: any): string {
   // Ocupación principal
   const occupation =
     client.incomeSources?.find((src: any) => !!src.positionOccupation)?.positionOccupation ||
-    client.incomeSources?.find((src: any) => !!src.employerOrSelfEmployed)?.employerOrSelfEmployed ||
     '';
   result = result.replace('{{client_occupation}}', occupation);
 
   // Fuente de ingreso principal
   const incomeSource =
-    client.incomeSources?.[0]?.employerOrSelfEmployed || '';
+    client.incomeSources?.find((src: any) => !!src.employerOrSelfEmployed)?.employerOrSelfEmployed ||
+    '';
   result = result.replace('{{client_income_source}}', incomeSource);
 
-  // ✅ Ingreso total estimado (usando `annualIncome` correctamente)
+  // Ingreso total estimado (usando annualIncome)
   const totalIncome = client.incomeSources?.reduce((acc: number, src: any) => {
-    const val = parseFloat(src.annualIncome); // CAMBIO CORRECTO AQUÍ
+    const val = parseFloat(src.annualIncome);
     return acc + (isNaN(val) ? 0 : val);
   }, 0) || 0;
   result = result.replace('{{client_income}}', `$${totalIncome.toLocaleString('en-US')}`);
