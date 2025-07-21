@@ -1,74 +1,50 @@
 // src/utils/replaceDynamicTags.ts
 
-export function replaceDynamicTags(template: string, data: any): string {
-  let result = template;
+export function replaceDynamicTags(content: string, data: any): string {
+  const { client, agent } = data;
 
-  const client = data.client || {};
-  const agent = data.agent || {};
+  let result = content;
 
-  // Calcular ingreso total
-  const totalIncome = client.incomeSources?.reduce((acc: number, src: any) => {
-    const val = parseFloat(src.amount);
-    return acc + (isNaN(val) ? 0 : val);
-  }, 0) || 0;
+  // Dirección física
+  result = result.replace('{{client_address1}}', client?.physicalAddress?.line1 || '');
 
-  const formattedIncome = totalIncome.toLocaleString('es-ES', {
-    style: 'currency',
-    currency: 'USD',
-  });
-
-  // Obtener ocupación de forma flexible
+  // Ocupación principal
   const occupation =
     client.incomeSources?.find((src: any) => !!src.positionOccupation)?.positionOccupation ||
     client.incomeSources?.find((src: any) => !!src.position)?.position ||
-    client.incomeSources?.find((src: any) => !!src.source)?.source ||
+    client.incomeSources?.find((src: any) => !!src.employerOrSelfEmployed)?.employerOrSelfEmployed ||
     '';
 
-  // CLIENTE
-  result = result.split('{{client_name}}').join(`<strong>${client.name || ''}</strong>`);
-  result = result.split('{{client_dob}}').join(`<strong>${client.dob || ''}</strong>`);
-  result = result.split('{{client_phone}}').join(`<strong>${client.phone || ''}</strong>`);
-  result = result.split('{{client_email}}').join(`<strong>${client.email || ''}</strong>`);
-  result = result.split('{{client_ssn}}').join(`<strong>${client.ssn || ''}</strong>`);
-  result = result.split('{{client_physical_address}}').join(
-    `<strong>${client.physicalAddress?.full_address || ''}</strong>`
-  );
-  result = result.split('{{client_mailing_address}}').join(
-    `<strong>${client.mailingAddress?.full_address || ''}</strong>`
-  );
-  result = result.split('{{client_address1}}').join(
-    `<strong>${client.physicalAddress?.line1 || ''}</strong>`
-  );
-  result = result.split('{{client_income}}').join(`<strong>${formattedIncome}</strong>`);
-  result = result.split('{{client_occupation}}').join(`<strong>${occupation}</strong>`);
-  result = result.split('{{client_income_source}}').join(
-    `<strong>${client.incomeSources?.[0]?.source || ''} ${client.incomeSources?.[0]?.amount || ''}</strong>`
-  );
-  result = result.split('{{client_immigration_status}}').join(
-    `<strong>${client.immigrationDetails?.status || ''}</strong>`
-  );
-  result = result.split('{{client_immigration_date}}').join(
-    `<strong>${client.immigrationDetails?.entry_date || ''}</strong>`
-  );
+  result = result.replace('{{client_occupation}}', occupation);
 
-  // AGENTE
-  result = result.split('{{agent_name}}').join(`<strong>${agent.name || ''}</strong>`);
-  result = result.split('{{agent_npn}}').join(`<strong>${agent.npn || ''}</strong>`);
-  result = result.split('{{agent_phone}}').join(`<strong>${agent.phone || ''}</strong>`);
-  result = result.split('{{agent_email}}').join(`<strong>${agent.email || ''}</strong>`);
+  // Fuente de ingreso principal
+  const incomeSource =
+    client.incomeSources?.[0]?.employerOrSelfEmployed || '';
 
-  // FECHAS
-  const today = new Date();
-  const currentDate = today.toLocaleDateString('es-ES');
-  const currentDateTime = today.toLocaleString('es-ES', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-    timeZone: 'America/New_York',
-  });
+  result = result.replace('{{client_income_source}}', incomeSource);
 
-  result = result.split('{{current_year}}').join(`<strong>${today.getFullYear().toString()}</strong>`);
-  result = result.split('{{current_date}}').join(`<strong>${currentDate}</strong>`);
-  result = result.split('{{current_datetime}}').join(`<strong>${currentDateTime}</strong>`);
+  // Ingreso total estimado (sumar todos los ingresos)
+  const totalIncome = client.incomeSources?.reduce((acc: number, src: any) => {
+    const val = parseFloat(src.annualIncome);
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0) || 0;
+
+  result = result.replace('{{client_income}}', `$${totalIncome.toLocaleString('en-US')}`);
+
+  // Estatus migratorio
+  result = result.replace('{{client_immigration_status}}', client.immigrationDetails?.status || '');
+
+  // Fecha de entrada al país
+  result = result.replace('{{client_immigration_date}}', client.immigrationDetails?.entry_date || '');
+
+  // Datos del agente
+  result = result.replace('{{agent_name}}', agent?.name || '');
+  result = result.replace('{{agent_email}}', agent?.email || '');
+  result = result.replace('{{agent_phone}}', agent?.phone || '');
+
+  // Reemplazo de fecha y hora actual
+  const now = new Date();
+  result = result.replace('{{current_datetime}}', now.toLocaleString('es-US'));
 
   return result;
 }
