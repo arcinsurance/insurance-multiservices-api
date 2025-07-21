@@ -1,8 +1,26 @@
+// src/utils/replaceDynamicTags.ts
 export function replaceDynamicTags(template: string, data: any): string {
   let result = template;
 
   const client = data.client || {};
   const agent = data.agent || {};
+
+  // Calcular ingreso total
+  const totalIncome = client.incomeSources?.reduce((acc: number, src: any) => {
+    const val = parseFloat(src.amount);
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0) || 0;
+
+  const formattedIncome = totalIncome.toLocaleString('es-ES', {
+    style: 'currency',
+    currency: 'USD',
+  });
+
+  // Obtener ocupación (primer cargo encontrado)
+  const occupation =
+    client.incomeSources?.find((src: any) => !!src.position)?.position ||
+    client.incomeSources?.find((src: any) => !!src.source)?.source ||
+    '';
 
   // CLIENTE
   result = result.split('{{client_name}}').join(`<strong>${client.name || ''}</strong>`);
@@ -19,14 +37,10 @@ export function replaceDynamicTags(template: string, data: any): string {
   result = result.split('{{client_address1}}').join(
     `<strong>${client.physicalAddress?.line1 || ''}</strong>`
   );
+  result = result.split('{{client_income}}').join(`<strong>${formattedIncome}</strong>`);
+  result = result.split('{{client_occupation}}').join(`<strong>${occupation}</strong>`);
   result = result.split('{{client_income_source}}').join(
     `<strong>${client.incomeSources?.[0]?.source || ''} ${client.incomeSources?.[0]?.amount || ''}</strong>`
-  );
-  result = result.split('{{client_income}}').join(
-    `<strong>${client.incomeSources?.[0]?.amount || ''}</strong>`
-  );
-  result = result.split('{{client_occupation}}').join(
-    `<strong>${client.incomeSources?.[0]?.source || ''}</strong>`
   );
   result = result.split('{{client_immigration_status}}').join(
     `<strong>${client.immigrationDetails?.status || ''}</strong>`
