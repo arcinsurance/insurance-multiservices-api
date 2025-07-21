@@ -17,8 +17,8 @@ export function replaceDynamicTags(template: string, data: any): string {
     currency: 'USD',
   });
 
-  // Obtener ocupación (usa primero positionOccupation y luego source)
-    const occupation =
+  // Obtener ocupación de forma flexible
+  const occupation =
     client.incomeSources?.find((src: any) => !!src.positionOccupation)?.positionOccupation ||
     client.incomeSources?.find((src: any) => !!src.position)?.position ||
     client.incomeSources?.find((src: any) => !!src.source)?.source ||
