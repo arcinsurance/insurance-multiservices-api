@@ -14,21 +14,18 @@ export function replaceDynamicTags(content: string, data: any): string {
     client.incomeSources?.find((src: any) => !!src.position)?.position ||
     client.incomeSources?.find((src: any) => !!src.employerOrSelfEmployed)?.employerOrSelfEmployed ||
     '';
-
   result = result.replace('{{client_occupation}}', occupation);
 
   // Fuente de ingreso principal
   const incomeSource =
     client.incomeSources?.[0]?.employerOrSelfEmployed || '';
-
   result = result.replace('{{client_income_source}}', incomeSource);
 
-  // Ingreso total estimado (sumar todos los ingresos)
+  // ✅ Ingreso total estimado (sumar todos los ingresos usando src.amount en lugar de annualIncome)
   const totalIncome = client.incomeSources?.reduce((acc: number, src: any) => {
-    const val = parseFloat(src.annualIncome);
+    const val = parseFloat(src.amount); // CAMBIO AQUÍ
     return acc + (isNaN(val) ? 0 : val);
   }, 0) || 0;
-
   result = result.replace('{{client_income}}', `$${totalIncome.toLocaleString('en-US')}`);
 
   // Estatus migratorio
