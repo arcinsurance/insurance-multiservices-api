@@ -32,10 +32,11 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]);
     const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [clientId]);
 
-    client.physical_address = physicalAddress;
-    client.mailing_address = mailingAddress;
-    client.immigration_details = immigrationRows[0] ?? {};
-    client.income_sources = incomeRows;
+    // ✅ Asegurarse de que los nombres de las propiedades coincidan con los que usa replaceDynamicTags.ts
+    client.physicalAddress = physicalAddress;
+    client.mailingAddress = mailingAddress;
+    client.immigrationDetails = immigrationRows[0] ?? {};
+    client.incomeSources = incomeRows;
 
     const [templateRows]: any = await db.execute(
       'SELECT id, content, name FROM document_templates WHERE id = ? LIMIT 1',
@@ -49,7 +50,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const [agentRows]: any = await db.execute('SELECT * FROM agents WHERE id = ?', [client.agent_id]);
     const agent = agentRows[0];
 
-    const combinedData = { ...client, ...agent };
+    const combinedData = { client, agent };
 
     const originalContent = replaceDynamicTags(template.content, combinedData);
 
@@ -79,8 +80,27 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const documentId = result.insertId;
     const signLink = `${FRONTEND_URL}/firmar/${documentId}`;
 
+    // Generar saludo personalizado por la hora del día
+    const currentHour = new Date().getHours();
+    let saludo = 'Hola';
+    if (currentHour < 12) saludo = 'Buenos días';
+    else if (currentHour < 18) saludo = 'Buenas tardes';
+    else saludo = 'Buenas noches';
+
     const subject = `Tu agente te envió un documento para firmar`;
-    const body = `Hola ${client.name},\n\nTe han enviado un documento para firma. Haz clic en el siguiente enlace para firmarlo:\n\n${signLink}\n\nGracias.`;
+    const body = `${saludo} ${client.name},
+
+Tu agente ${agent.name} te ha enviado un documento para tu firma digital.
+
+Por favor revísalo y fírmalo usando el siguiente enlace:
+${signLink}
+
+Si tienes alguna duda, no dudes en comunicarte conmigo.
+
+Atentamente,
+${agent.name}
+Teléfono: ${agent.phone}
+Email: ${agent.email}`;
 
     await sendEmail(client.email, subject, body);
 
