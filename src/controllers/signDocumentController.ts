@@ -10,7 +10,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://tusitio.com';
 /* -------------------------------------------------------------------------- */
 export const sendDocumentForSignature = async (req: Request, res: Response) => {
   try {
-    console.log('📩 Body recibido en sendDocumentForSignature:', req.body); // 👈 NUEVO LOG
+    console.log('📩 Body recibido en sendDocumentForSignature:', req.body);
 
     const { clientId, templateId, sentById } = req.body;
 
@@ -19,7 +19,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     }
 
     const [clientRows]: any = await db.execute(
-      'SELECT * FROM clients WHERE id = ? LIMIT 1',
+      'SELECT id, name, email, agent_id FROM clients WHERE id = ? LIMIT 1',
       [clientId]
     );
     if (clientRows.length === 0) {
@@ -78,7 +78,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       [clientId, templateId, fullContent, sentById]
     );
 
-    console.log('✅ Documento insertado correctamente con ID:', result.insertId); // 👈 NUEVO LOG
+    console.log('✅ Documento insertado correctamente con ID:', result.insertId);
 
     const documentId = result.insertId;
     const signLink = `${FRONTEND_URL}/firmar/${documentId}`;
