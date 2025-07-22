@@ -49,10 +49,13 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const template = templateRows[0];
 
     const [agentRows]: any = await db.execute('SELECT * FROM agents WHERE id = ?', [client.agent_id]);
-    const agent = agentRows[0];
+    const agent = agentRows[0] ?? {
+      name: 'nuestro equipo',
+      phone: '(813) 885-5296',
+      email: 'info@insurancemultiservices.com',
+    };
 
     const combinedData = { client, agent };
-
     const originalContent = replaceDynamicTags(template.content, combinedData);
 
     const header = `
@@ -89,9 +92,9 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     else if (currentHour < 18) saludo = 'Buenas tardes';
     else saludo = 'Buenas noches';
 
-    const agentName = agent?.name || 'nuestro equipo';
-    const agentPhone = agent?.phone || '';
-    const agentEmail = agent?.email || '';
+    const agentName = agent.name;
+    const agentPhone = agent.phone;
+    const agentEmail = agent.email;
 
     const subject = `Tu agente te envió un documento para firmar`;
     const body = `${saludo} ${client.name},
