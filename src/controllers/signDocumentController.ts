@@ -10,6 +10,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'https://tusitio.com';
 /* -------------------------------------------------------------------------- */
 export const sendDocumentForSignature = async (req: Request, res: Response) => {
   try {
+    console.log('📩 Body recibido en sendDocumentForSignature:', req.body); // 👈 NUEVO LOG
+
     const { clientId, templateId, sentById } = req.body;
 
     if (!clientId || !templateId || !sentById) {
@@ -32,7 +34,6 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]);
     const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [clientId]);
 
-    // ✅ Asegurarse de que los nombres de las propiedades coincidan con los que usa replaceDynamicTags.ts
     client.physicalAddress = physicalAddress;
     client.mailingAddress = mailingAddress;
     client.immigrationDetails = immigrationRows[0] ?? {};
@@ -77,10 +78,11 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       [clientId, templateId, fullContent, sentById]
     );
 
+    console.log('✅ Documento insertado correctamente con ID:', result.insertId); // 👈 NUEVO LOG
+
     const documentId = result.insertId;
     const signLink = `${FRONTEND_URL}/firmar/${documentId}`;
 
-    // Generar saludo personalizado por la hora del día
     const currentHour = new Date().getHours();
     let saludo = 'Hola';
     if (currentHour < 12) saludo = 'Buenos días';
@@ -183,6 +185,7 @@ export const getSentDocuments = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
 /* -------------------------------------------------------------------------- */
 /* 5. OBTENER DOCUMENTO INDIVIDUAL PARA FIRMA                                 */
 /* -------------------------------------------------------------------------- */
@@ -205,7 +208,6 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
 
     const document = docRows[0];
 
-    // 🔍 Obtener todos los datos relacionados del cliente
     const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
     const client = clientRows[0];
 
