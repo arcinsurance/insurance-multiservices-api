@@ -30,11 +30,11 @@ export async function sendEmail(
     to: recipientEmail,
     subject,
     text: plainTextBody,
-    html: htmlContent,
+    ...(htmlContent ? { html: htmlContent } : {}),
   };
 
   await transporter.sendMail(mailOptions);
-  console.log(`Email enviado a ${recipientEmail} (asunto: "${subject}")`);
+  console.log(`📧 Email enviado a ${recipientEmail} (asunto: "${subject}")`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -59,7 +59,7 @@ Insurance Multiservices LLC`,
   };
 
   await transporter.sendMail(mailOptions);
-  console.log(`Email enviado a agente ${recipientEmail} (asunto: "${subject}")`);
+  console.log(`📧 Email de sistema enviado a agente ${recipientEmail}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -94,7 +94,7 @@ export async function sendAgentWelcomeEmail(
     html,
   });
 
-  console.log(`Correo de bienvenida enviado a ${email}`);
+  console.log(`📧 Correo de bienvenida enviado a ${email}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -126,5 +126,5 @@ export async function sendClientMessageEmail(
     html,
   });
 
-  console.log(`Mensaje enviado al cliente ${recipientEmail} por ${senderName}`);
+  console.log(`📧 Mensaje enviado al cliente ${recipientEmail} por ${senderName}`);
 }
