@@ -102,26 +102,26 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     const subject = `Tu agente te envió un documento para firmar`;
 
     const body = `
-      <p>${saludo} ${client.name},</p>
+  <p>${saludo} ${client.name},</p>
 
-      <p>Tu agente <strong>${agentName}</strong> te ha enviado un documento para tu firma digital.</p>
+  <p>Tu agente <strong>${agentName}</strong> te ha enviado un documento para tu firma digital.</p>
 
-      <p style="margin-bottom: 20px;">Por favor revísalo y fírmalo usando el siguiente botón:</p>
+  <p style="margin-bottom: 20px;">Por favor revísalo y fírmalo usando el siguiente botón:</p>
 
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${signLink}" style="
-          background-color: #007bff;
-          color: white;
-          padding: 12px 24px;
-          text-decoration: none;
-          border-radius: 6px;
-          display: inline-block;
-          font-weight: bold;
-          font-size: 16px;
-        ">
-          Firmar Documento
-        </a>
-      </div>
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${signLink}" style="
+      background-color: #007bff;
+      color: white;
+      padding: 12px 24px;
+      text-decoration: none;
+      border-radius: 6px;
+      display: inline-block;
+      font-weight: bold;
+      font-size: 16px;
+    ">
+      Firmar Documento
+    </a>
+  </div>
 
       <p>Si tienes alguna duda, no dudes en comunicarte conmigo.</p>
 
