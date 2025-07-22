@@ -48,9 +48,12 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     }
     const template = templateRows[0];
 
-    const [agentRows]: any = await db.execute('SELECT * FROM agents WHERE id = ?', [client.agent_id]);
+    const [agentRows]: any = await db.execute(
+      'SELECT full_name, phone, email FROM agents WHERE id = ? LIMIT 1',
+      [client.agent_id]
+    );
     const agent = agentRows[0] ?? {
-      name: 'nuestro equipo',
+      full_name: 'nuestro equipo',
       phone: '(813) 885-5296',
       email: 'info@insurancemultiservices.com',
     };
@@ -92,7 +95,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     else if (currentHour < 18) saludo = 'Buenas tardes';
     else saludo = 'Buenas noches';
 
-    const agentName = agent.name;
+    const agentName = agent.full_name;
     const agentPhone = agent.phone;
     const agentEmail = agent.email;
 
@@ -201,7 +204,7 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const [docRows]: any = await db.execute(
-      `SELECT sd.*, c.name AS client_name, a.name AS agent_name
+      `SELECT sd.*, c.name AS client_name, a.full_name AS agent_name
        FROM signed_documents sd
        JOIN clients c ON sd.client_id = c.id
        JOIN agents a ON c.agent_id = a.id
@@ -230,7 +233,7 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
     client.immigrationDetails = immigrationRows[0] ?? {};
     client.incomeSources = incomeRows;
 
-    const [agentRows]: any = await db.execute('SELECT * FROM agents WHERE id = ?', [client.agent_id]);
+    const [agentRows]: any = await db.execute('SELECT full_name, email, phone FROM agents WHERE id = ?', [client.agent_id]);
     const agent = agentRows[0];
 
     return res.status(200).json({
