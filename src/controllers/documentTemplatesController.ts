@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
+import { v4 as uuidv4 } from 'uuid';
 
-// Obtener todas las plantillas de documentos
+/* -------------------------------------------------------------------------- */
+/* Obtener todas las plantillas de documentos                                */
+/* -------------------------------------------------------------------------- */
 export const getAllDocumentTemplates = async (req: Request, res: Response) => {
   try {
     const [rows] = await db.query('SELECT * FROM document_templates');
@@ -12,7 +15,9 @@ export const getAllDocumentTemplates = async (req: Request, res: Response) => {
   }
 };
 
-// Crear una nueva plantilla de documento
+/* -------------------------------------------------------------------------- */
+/* Crear una nueva plantilla de documento                                    */
+/* -------------------------------------------------------------------------- */
 export const createDocumentTemplate = async (req: Request, res: Response) => {
   try {
     const { name, category, content } = req.body;
@@ -21,13 +26,15 @@ export const createDocumentTemplate = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Name, category, and content are required' });
     }
 
-    const [result] = await db.query(
-      'INSERT INTO document_templates (name, category, content, created_at) VALUES (?, ?, ?, NOW())',
-      [name, category, content]
+    const id = uuidv4(); // 🔥 Generar ID único
+
+    await db.query(
+      'INSERT INTO document_templates (id, name, category, content, created_at) VALUES (?, ?, ?, ?, NOW())',
+      [id, name, category, content]
     );
 
     res.status(201).json({
-      id: (result as any).insertId,
+      id,
       name,
       category,
       content
@@ -38,7 +45,9 @@ export const createDocumentTemplate = async (req: Request, res: Response) => {
   }
 };
 
-// Actualizar una plantilla existente
+/* -------------------------------------------------------------------------- */
+/* Actualizar una plantilla existente                                        */
+/* -------------------------------------------------------------------------- */
 export const updateDocumentTemplate = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -60,7 +69,9 @@ export const updateDocumentTemplate = async (req: Request, res: Response) => {
   }
 };
 
-// Eliminar una plantilla de documento
+/* -------------------------------------------------------------------------- */
+/* Eliminar una plantilla de documento                                       */
+/* -------------------------------------------------------------------------- */
 export const deleteDocumentTemplate = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
