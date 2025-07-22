@@ -89,10 +89,14 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     else if (currentHour < 18) saludo = 'Buenas tardes';
     else saludo = 'Buenas noches';
 
+    const agentName = agent?.name || 'nuestro equipo';
+    const agentPhone = agent?.phone || '';
+    const agentEmail = agent?.email || '';
+
     const subject = `Tu agente te envió un documento para firmar`;
     const body = `${saludo} ${client.name},
 
-Tu agente ${agent.name} te ha enviado un documento para tu firma digital.
+Tu agente ${agentName} te ha enviado un documento para tu firma digital.
 
 Por favor revísalo y fírmalo usando el siguiente enlace:
 ${signLink}
@@ -100,9 +104,9 @@ ${signLink}
 Si tienes alguna duda, no dudes en comunicarte conmigo.
 
 Atentamente,
-${agent.name}
-Teléfono: ${agent.phone}
-Email: ${agent.email}`;
+${agentName}
+Teléfono: ${agentPhone}
+Email: ${agentEmail}`;
 
     await sendEmail(client.email, subject, body);
 
