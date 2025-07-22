@@ -109,7 +109,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
   <p style="margin-bottom: 20px;">Por favor revísalo y fírmalo usando el siguiente botón:</p>
 
   <div style="text-align: center; margin: 30px 0;">
-    <a href="${signLink}" style="
+    <a href="${signLink.trim()}" style="
       background-color: #007bff;
       color: white;
       padding: 12px 24px;
@@ -123,13 +123,13 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     </a>
   </div>
 
-      <p>Si tienes alguna duda, no dudes en comunicarte conmigo.</p>
+  <p>Si tienes alguna duda, no dudes en comunicarte conmigo.</p>
 
-      <p>Atentamente,<br>
-      ${agentName}<br>
-      Teléfono: ${agentPhone}<br>
-      Email: ${agentEmail}</p>
-    `;
+  <p>Atentamente,<br>
+  ${agentName}<br>
+  Teléfono: ${agentPhone}<br>
+  Email: ${agentEmail}</p>
+`;
 
     await sendEmail(client.email, subject, body);
 
