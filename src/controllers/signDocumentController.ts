@@ -83,7 +83,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     // --- Póliza ---
     console.log('📦 Buscando póliza asociada...');
     const [policyRows]: any = await db.execute(
-      'SELECT * FROM policies WHERE client_id = ? LIMIT 1',
+      'SELECT * FROM policies WHERE clientId = ? LIMIT 1',
       [client.id]
     );
     const policy = policyRows?.[0] || {};
@@ -148,7 +148,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
         Si el botón no funciona, copia y pega este enlace en tu navegador:<br/>
         <a href="${signLink.trim()}">${signLink.trim()}</a>
       </p>
-      <p>Si tienes alguna duda, no dudes en comunicarte conmigo.</p>
+      <p>Si tienes alguna duda, no dudes en comunicarme.</p>
       <p>Atentamente,<br>
       ${agent.full_name}<br>
       Teléfono: ${agent.phone}<br>
