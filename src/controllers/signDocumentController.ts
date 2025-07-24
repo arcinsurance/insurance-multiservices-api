@@ -20,22 +20,26 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     }
 
     // --- Cliente ---
+    console.log('🔎 Buscando cliente con ID:', clientId);
     const [clientRows]: any = await db.execute(
       'SELECT id, name, dateOfBirth AS dob, email, agent_id FROM clients WHERE id = ? LIMIT 1',
-      [clientId]
+      [clientId.toString()]
     );
-    if (clientRows.length === 0) {
-      console.warn('⚠️ Cliente no encontrado:', clientId);
+    if (!clientRows || clientRows.length === 0) {
+      console.warn('⚠️ Cliente no encontrado en DB para ID:', clientId);
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
     const client = clientRows[0];
+    console.log('✅ Cliente encontrado:', client);
 
-    const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [clientId]);
+    // --- Direcciones ---
+    const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
     const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
     const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
 
-    const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [clientId]);
-    const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [clientId]);
+    // --- Datos adicionales ---
+    const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
+    const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
 
     client.physicalAddress = physicalAddress;
     client.mailingAddress = mailingAddress;
@@ -43,33 +47,42 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     client.incomeSources = incomeRows;
 
     // --- Plantilla ---
+    console.log('🔎 Buscando plantilla con ID:', templateId);
     const [templateRows]: any = await db.execute(
       'SELECT id, content, name FROM document_templates WHERE id = ? LIMIT 1',
       [templateId]
     );
-    if (templateRows.length === 0) {
+    if (!templateRows || templateRows.length === 0) {
       console.warn('⚠️ Plantilla no encontrada:', templateId);
       return res.status(404).json({ error: 'Plantilla no encontrada' });
     }
     const template = templateRows[0];
+    console.log('✅ Plantilla encontrada:', template.name);
 
     // --- Agente ---
-    const [agentRows]: any = await db.execute(
-      'SELECT full_name, phone, email FROM agents WHERE id = ? LIMIT 1',
-      [client.agent_id]
-    );
-    const agent = agentRows[0] ?? {
+    let agent: any = {
       full_name: 'nuestro equipo',
       phone: '(813) 885-5296',
       email: 'info@insurancemultiservices.com',
     };
+    if (client.agent_id) {
+      const [agentRows]: any = await db.execute(
+        'SELECT full_name, phone, email FROM agents WHERE id = ? LIMIT 1',
+        [client.agent_id]
+      );
+      if (agentRows && agentRows.length > 0) {
+        agent = agentRows[0];
+      }
+    }
+    console.log('👤 Agente asignado:', agent);
 
     // --- Póliza ---
     const [policyRows]: any = await db.execute(
       'SELECT market_id FROM policies WHERE client_id = ? LIMIT 1',
-      [clientId]
+      [client.id]
     );
-    const policy = policyRows[0] || {};
+    const policy = policyRows?.[0] || {};
+    console.log('📄 Póliza encontrada (si existe):', policy);
 
     // --- Reemplazo dinámico ---
     const combinedData = { client, agent, policy };
@@ -93,20 +106,17 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       `INSERT INTO signed_documents
        (client_id, template_id, content, sent_by_id, status, created_at)
        VALUES (?, ?, ?, ?, 'pendiente', NOW())`,
-      [clientId, templateId, fullContent, sentById]
+      [client.id, template.id, fullContent, sentById]
     );
-
     console.log('✅ Documento insertado correctamente con ID:', result.insertId);
 
     const documentId = result.insertId;
     const signLink = `${FRONTEND_URL}/firmar/${documentId}`;
     console.log('🔗 Enlace de firma generado:', signLink);
 
+    // --- Email ---
     const currentHour = new Date().getHours();
-    let saludo = 'Hola';
-    if (currentHour < 12) saludo = 'Buenos días';
-    else if (currentHour < 18) saludo = 'Buenas tardes';
-    else saludo = 'Buenas noches';
+    const saludo = currentHour < 12 ? 'Buenos días' : currentHour < 18 ? 'Buenas tardes' : 'Buenas noches';
 
     const subject = `Tu agente te envió un documento para firmar`;
     const body = `
@@ -161,7 +171,7 @@ export const getPendingDocuments = async (req: Request, res: Response) => {
        JOIN document_templates dt ON sd.template_id = dt.id
        WHERE sd.client_id = ? AND sd.status = 'pendiente'
        ORDER BY sd.created_at DESC`,
-      [clientId]
+      [clientId.toString()]
     );
 
     console.log('📄 Documentos pendientes encontrados:', rows.length);
@@ -216,7 +226,7 @@ export const getSentDocuments = async (req: Request, res: Response) => {
        JOIN document_templates dt ON sd.template_id = dt.id
        WHERE sd.sent_by_id = ?
        ORDER BY sd.created_at DESC`,
-      [userId]
+      [userId.toString()]
     );
 
     console.log('📄 Documentos enviados encontrados:', rows.length);
@@ -241,16 +251,15 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
        JOIN clients c ON sd.client_id = c.id
        JOIN agents a ON c.agent_id = a.id
        WHERE sd.id = ?`,
-      [id]
+      [id.toString()]
     );
 
-    if (docRows.length === 0) {
+    if (!docRows || docRows.length === 0) {
       console.warn('⚠️ Documento no encontrado:', id);
       return res.status(404).json({ error: 'Documento no encontrado' });
     }
 
     const document = docRows[0];
-
     const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
     const client = clientRows[0];
 
@@ -270,11 +279,7 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
     const agent = agentRows[0];
 
     console.log('✅ Documento recuperado:', document.id);
-    return res.status(200).json({
-      ...document,
-      client,
-      agent,
-    });
+    return res.status(200).json({ ...document, client, agent });
   } catch (error) {
     console.error('❌ Error al obtener documento firmado:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
