@@ -10,19 +10,19 @@ import {
 
 const router = express.Router();
 
-// ✅ Ruta para obtener documentos enviados por un usuario (antes de /:clientId)
-router.get('/sent/:userId', getSentDocuments);
-
-// ✅ Ruta para obtener un documento individual por ID (para firmar)
+// ✅ Ruta para obtener un documento individual por ID (pública)
 router.get('/view/:id', getSignedDocumentById);
 
-// Ruta para registrar documento pendiente de firma
+// ✅ Ruta para obtener documentos enviados por un usuario (protegida)
+router.get('/sent/:userId', getSentDocuments);
+
+// Ruta para registrar documento pendiente de firma (protegida)
 router.post('/', sendDocumentForSignature);
 
-// Ruta para obtener los documentos pendientes de un cliente
+// Ruta para obtener los documentos pendientes de un cliente (protegida)
 router.get('/:clientId', getPendingDocuments);
 
-// Ruta para guardar la firma del documento
+// Ruta para guardar la firma del documento (protegida)
 router.post('/sign', signDocument);
 
 export default router;
