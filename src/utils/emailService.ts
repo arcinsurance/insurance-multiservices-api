@@ -17,14 +17,16 @@ const transporter = nodemailer.createTransport({
 });
 
 /* -------------------------------------------------------------------------- */
-/* FUNCIÓN GENÉRICA: Enviar correo (HTML por defecto si detecta etiquetas)    */
+/* FUNCIÓN GENÉRICA: Enviar correo (detecta HTML automáticamente)             */
 /* -------------------------------------------------------------------------- */
 export async function sendEmail(
   recipientEmail: string,
   subject: string,
   body: string
 ): Promise<void> {
-  const hasHtml = /<([a-z][\s\S]*?)>/i.test(body); // Detecta si hay etiquetas HTML
+  // Detecta si el contenido tiene etiquetas HTML
+  const hasHtml = /<([a-z][\s\S]*?)>/i.test(body);
+
   const mailOptions = {
     from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
     to: recipientEmail,
@@ -37,7 +39,7 @@ export async function sendEmail(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Otros métodos se mantienen igual (SystemMessage, Welcome, ClientMessage)   */
+/* Mensaje de sistema para agentes (texto plano)                              */
 /* -------------------------------------------------------------------------- */
 export async function sendSystemMessageEmail(
   recipientEmail: string,
@@ -61,6 +63,9 @@ Insurance Multiservices LLC`,
   console.log(`📧 Email de sistema enviado a agente ${recipientEmail}`);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Correo de bienvenida al agente recién creado (HTML)                        */
+/* -------------------------------------------------------------------------- */
 export async function sendAgentWelcomeEmail(
   email: string,
   fullName: string,
@@ -77,8 +82,7 @@ export async function sendAgentWelcomeEmail(
         crm.insurancemultiservices.com
       </a>
     </p>
-    <p><strong>Importante:</strong> La contraseña expirará en 24&nbsp;h. Cámbiala
-    al iniciar sesión.</p>
+    <p><strong>Importante:</strong> La contraseña expirará en 24&nbsp;h. Cámbiala al iniciar sesión.</p>
     <br/>
     <p>Saludos,<br/>Equipo de Insurance Multiservices</p>
   `;
@@ -93,6 +97,9 @@ export async function sendAgentWelcomeEmail(
   console.log(`📧 Correo de bienvenida enviado a ${email}`);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Mensaje a clientes (HTML)                                                  */
+/* -------------------------------------------------------------------------- */
 export async function sendClientMessageEmail(
   recipientEmail: string,
   subject: string,
