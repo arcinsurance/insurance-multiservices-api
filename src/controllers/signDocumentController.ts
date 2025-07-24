@@ -104,11 +104,8 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
 
     const body = `
       <p>${saludo} ${client.name},</p>
-
       <p>Tu agente <strong>${agentName}</strong> te ha enviado un documento para tu firma digital.</p>
-
       <p style="margin-bottom: 20px;">Por favor revísalo y fírmalo usando el siguiente botón:</p>
-
       <div style="text-align: center; margin: 30px 0;">
         <a href="${signLink.trim()}" style="
           background-color: #007bff;
@@ -118,14 +115,15 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
           border-radius: 6px;
           display: inline-block;
           font-weight: bold;
-          font-size: 16px;
-        ">
-          Firmar Documento
+          font-size: 16px;">
+          👉 Firmar Documento Ahora
         </a>
       </div>
-
+      <p style="font-size:12px; color:#555; text-align:center;">
+        Si el botón no funciona, copia y pega este enlace en tu navegador:<br/>
+        <a href="${signLink.trim()}">${signLink.trim()}</a>
+      </p>
       <p>Si tienes alguna duda, no dudes en comunicarte conmigo.</p>
-
       <p>Atentamente,<br>
       ${agentName}<br>
       Teléfono: ${agentPhone}<br>
@@ -140,6 +138,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
 
 /* -------------------------------------------------------------------------- */
 /* 2. OBTENER DOCUMENTOS PENDIENTES                                           */
