@@ -20,7 +20,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
 
     // --- Cliente ---
     const [clientRows]: any = await db.execute(
-      'SELECT id, name, dob, email, agent_id FROM clients WHERE id = ? LIMIT 1',
+      'SELECT id, name, dateOfBirth AS dob, email, agent_id FROM clients WHERE id = ? LIMIT 1',
       [clientId]
     );
     if (clientRows.length === 0) {
