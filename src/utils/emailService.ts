@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /* -------------------------------------------------------------------------- */
-/*  Configuración del transporter                                             */
+/* Configuración del transporter                                              */
 /* -------------------------------------------------------------------------- */
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -17,20 +17,19 @@ const transporter = nodemailer.createTransport({
 });
 
 /* -------------------------------------------------------------------------- */
-/* FUNCIÓN GENÉRICA: Enviar correo simple o con HTML                         */
+/* FUNCIÓN GENÉRICA: Enviar correo (HTML por defecto si detecta etiquetas)    */
 /* -------------------------------------------------------------------------- */
 export async function sendEmail(
   recipientEmail: string,
   subject: string,
-  plainTextBody: string,
-  htmlContent?: string
+  body: string
 ): Promise<void> {
+  const hasHtml = /<([a-z][\s\S]*?)>/i.test(body); // Detecta si hay etiquetas HTML
   const mailOptions = {
     from: `"Insurance Multiservices" <${process.env.SMTP_USER}>`,
     to: recipientEmail,
     subject,
-    text: plainTextBody,
-    ...(htmlContent ? { html: htmlContent } : {}),
+    ...(hasHtml ? { html: body } : { text: body }),
   };
 
   await transporter.sendMail(mailOptions);
@@ -38,7 +37,7 @@ export async function sendEmail(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 1. Mensaje de sistema para AGENTES (texto plano)                           */
+/* Otros métodos se mantienen igual (SystemMessage, Welcome, ClientMessage)   */
 /* -------------------------------------------------------------------------- */
 export async function sendSystemMessageEmail(
   recipientEmail: string,
@@ -62,9 +61,6 @@ Insurance Multiservices LLC`,
   console.log(`📧 Email de sistema enviado a agente ${recipientEmail}`);
 }
 
-/* -------------------------------------------------------------------------- */
-/* 2. Correo de BIENVENIDA al agente recién creado                            */
-/* -------------------------------------------------------------------------- */
 export async function sendAgentWelcomeEmail(
   email: string,
   fullName: string,
@@ -97,9 +93,6 @@ export async function sendAgentWelcomeEmail(
   console.log(`📧 Correo de bienvenida enviado a ${email}`);
 }
 
-/* -------------------------------------------------------------------------- */
-/* 3. Mensaje a CLIENTES (HTML + firma del agente)                            */
-/* -------------------------------------------------------------------------- */
 export async function sendClientMessageEmail(
   recipientEmail: string,
   subject: string,
