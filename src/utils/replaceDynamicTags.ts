@@ -1,51 +1,48 @@
 // src/utils/replaceDynamicTags.ts
+
 export function replaceDynamicTags(content: string, data: any): string {
-  const { client, agent } = data;
+  const { client, agent, policy } = data;
+
   let result = content;
 
-  // --- Reemplazo dinámico de cualquier tag tipo {{client.xxx}} ---
-  result = result.replace(/\{\{client\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
-    return client && client[key] !== undefined ? client[key] : '';
-  });
+  // -------- DATOS DEL CLIENTE --------
+  result = result.replace(/{{client_name}}/g, client?.name || '');
+  result = result.replace(/{{client_dob}}/g, client?.dob || '');
+  result = result.replace(/{{client_address1}}/g, client?.physicalAddress?.line1 || '');
 
-  // --- Reemplazo dinámico de cualquier tag tipo {{agent.xxx}} ---
-  result = result.replace(/\{\{agent\.([a-zA-Z0-9_]+)\}\}/g, (_, key) => {
-    return agent && agent[key] !== undefined ? agent[key] : '';
-  });
+  // -------- DATOS DE POLÍTICA --------
+  result = result.replace(/{{policy_market_id}}/g, policy?.market_id || '');
 
-  // --- Tags especiales predefinidos ---
-  // Dirección física (compatibilidad con tu formato anterior)
-  result = result.replace('{{client_address1}}', client?.physicalAddress?.line1 || '');
-
-  // Ocupación principal
+  // -------- OCUPACIÓN E INGRESOS --------
   const occupation =
     client?.incomeSources?.find((src: any) => src.positionOccupation)?.positionOccupation || '';
-  result = result.replace('{{client_occupation}}', occupation);
+  result = result.replace(/{{client_occupation}}/g, occupation);
 
-  // Fuente de ingreso principal
   const incomeSource =
     client?.incomeSources?.find((src: any) => src.employerOrSelfEmployed)?.employerOrSelfEmployed || '';
-  result = result.replace('{{client_income_source}}', incomeSource);
+  result = result.replace(/{{client_income_source}}/g, incomeSource);
 
-  // Ingreso total estimado
-  const totalIncome = client?.incomeSources?.reduce((acc: number, src: any) => {
-    const val = parseFloat(src.annualIncome);
-    return acc + (isNaN(val) ? 0 : val);
-  }, 0) || 0;
-  result = result.replace('{{client_income}}', `$${totalIncome.toLocaleString('en-US')}`);
+  const totalIncome =
+    client?.incomeSources?.reduce((acc: number, src: any) => {
+      const val = parseFloat(src.annualIncome);
+      return acc + (isNaN(val) ? 0 : val);
+    }, 0) || 0;
+  result = result.replace(/{{client_income}}/g, `$${totalIncome.toLocaleString('en-US')}`);
 
-  // Estatus migratorio y fecha
-  result = result.replace('{{client_immigration_status}}', client?.immigrationDetails?.status || '');
-  result = result.replace('{{client_immigration_date}}', client?.immigrationDetails?.entry_date || '');
+  // -------- ESTATUS MIGRATORIO --------
+  result = result.replace(/{{client_immigration_status}}/g, client?.immigrationDetails?.status || '');
+  result = result.replace(/{{client_immigration_date}}/g, client?.immigrationDetails?.entry_date || '');
 
-  // Tags del agente (compatibilidad con formato anterior)
-  result = result.replace('{{agent_name}}', agent?.full_name || '');
-  result = result.replace('{{agent_email}}', agent?.email || '');
-  result = result.replace('{{agent_phone}}', agent?.phone || '');
+  // -------- DATOS DEL AGENTE --------
+  result = result.replace(/{{agent_name}}/g, agent?.full_name || agent?.name || '');
+  result = result.replace(/{{agent_email}}/g, agent?.email || '');
+  result = result.replace(/{{agent_phone}}/g, agent?.phone || '');
 
-  // Fecha y hora actual
+  // -------- FECHAS --------
   const now = new Date();
-  result = result.replace('{{current_datetime}}', now.toLocaleString('es-US'));
+  result = result.replace(/{{current_datetime}}/g, now.toLocaleString('es-US'));
+  result = result.replace(/{{current_date}}/g, now.toLocaleDateString('es-US'));
+  result = result.replace(/{{current_year}}/g, now.getFullYear().toString());
 
   return result;
 }
