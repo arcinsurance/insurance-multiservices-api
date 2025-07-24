@@ -220,11 +220,16 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // --- Cambiar JOIN → LEFT JOIN ---
     const [docRows]: any = await db.execute(
-      `SELECT sd.*, c.name AS client_name, a.full_name AS agent_name
+      `SELECT sd.*, 
+              c.name AS client_name, 
+              a.full_name AS agent_name,
+              a.email AS agent_email,
+              a.phone AS agent_phone
        FROM signed_documents sd
-       JOIN clients c ON sd.client_id = c.id
-       JOIN agents a ON c.agent_id = a.id
+       LEFT JOIN clients c ON sd.client_id = c.id
+       LEFT JOIN agents a ON c.agent_id = a.id
        WHERE sd.id = ?`,
       [id]
     );
@@ -235,23 +240,32 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
 
     const document = docRows[0];
 
-    const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
-    const client = clientRows[0];
+    // --- Si existe client_id, obtener detalles extra ---
+    let client = null;
+    if (document.client_id) {
+      const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
+      client = clientRows.length ? clientRows[0] : null;
 
-    const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
-    const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
-    const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
+      if (client) {
+        const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
+        const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
+        const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
 
-    const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
-    const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
+        const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
+        const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
 
-    client.physicalAddress = physicalAddress;
-    client.mailingAddress = mailingAddress;
-    client.immigrationDetails = immigrationRows[0] ?? {};
-    client.incomeSources = incomeRows;
+        client.physicalAddress = physicalAddress;
+        client.mailingAddress = mailingAddress;
+        client.immigrationDetails = immigrationRows[0] ?? {};
+        client.incomeSources = incomeRows;
+      }
+    }
 
-    const [agentRows]: any = await db.execute('SELECT full_name, email, phone FROM agents WHERE id = ?', [client.agent_id]);
-    const agent = agentRows[0];
+    const agent = {
+      full_name: document.agent_name ?? 'No asignado',
+      email: document.agent_email ?? 'N/A',
+      phone: document.agent_phone ?? 'N/A',
+    };
 
     return res.status(200).json({
       ...document,
