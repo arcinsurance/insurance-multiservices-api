@@ -83,7 +83,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     // --- Póliza ---
     console.log('📦 Buscando póliza asociada...');
     const [policyRows]: any = await db.execute(
-      'SELECT market_id FROM policies WHERE client_id = ? LIMIT 1',
+      'SELECT * FROM policies WHERE client_id = ? LIMIT 1',
       [client.id]
     );
     const policy = policyRows?.[0] || {};
