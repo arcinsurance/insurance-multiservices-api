@@ -18,8 +18,9 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Faltan clientId, templateId o sentById' });
     }
 
+    // --- Cliente ---
     const [clientRows]: any = await db.execute(
-      'SELECT id, name, email, agent_id FROM clients WHERE id = ? LIMIT 1',
+      'SELECT id, name, dob, email, agent_id FROM clients WHERE id = ? LIMIT 1',
       [clientId]
     );
     if (clientRows.length === 0) {
@@ -39,6 +40,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     client.immigrationDetails = immigrationRows[0] ?? {};
     client.incomeSources = incomeRows;
 
+    // --- Plantilla ---
     const [templateRows]: any = await db.execute(
       'SELECT id, content, name FROM document_templates WHERE id = ? LIMIT 1',
       [templateId]
@@ -48,6 +50,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     }
     const template = templateRows[0];
 
+    // --- Agente ---
     const [agentRows]: any = await db.execute(
       'SELECT full_name, phone, email FROM agents WHERE id = ? LIMIT 1',
       [client.agent_id]
@@ -58,7 +61,15 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       email: 'info@insurancemultiservices.com',
     };
 
-    const combinedData = { client, agent };
+    // --- Póliza ---
+    const [policyRows]: any = await db.execute(
+      'SELECT market_id FROM policies WHERE client_id = ? LIMIT 1',
+      [clientId]
+    );
+    const policy = policyRows[0] || {};
+
+    // --- Reemplazo dinámico ---
+    const combinedData = { client, agent, policy };
     const originalContent = replaceDynamicTags(template.content, combinedData);
 
     const header = `
@@ -138,7 +149,6 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
-
 
 /* -------------------------------------------------------------------------- */
 /* 2. OBTENER DOCUMENTOS PENDIENTES                                           */
@@ -220,16 +230,11 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // --- Cambiar JOIN → LEFT JOIN ---
     const [docRows]: any = await db.execute(
-      `SELECT sd.*, 
-              c.name AS client_name, 
-              a.full_name AS agent_name,
-              a.email AS agent_email,
-              a.phone AS agent_phone
+      `SELECT sd.*, c.name AS client_name, a.full_name AS agent_name
        FROM signed_documents sd
-       LEFT JOIN clients c ON sd.client_id = c.id
-       LEFT JOIN agents a ON c.agent_id = a.id
+       JOIN clients c ON sd.client_id = c.id
+       JOIN agents a ON c.agent_id = a.id
        WHERE sd.id = ?`,
       [id]
     );
@@ -240,32 +245,23 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
 
     const document = docRows[0];
 
-    // --- Si existe client_id, obtener detalles extra ---
-    let client = null;
-    if (document.client_id) {
-      const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
-      client = clientRows.length ? clientRows[0] : null;
+    const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
+    const client = clientRows[0];
 
-      if (client) {
-        const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
-        const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
-        const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
+    const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
+    const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
+    const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
 
-        const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
-        const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
+    const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
+    const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
 
-        client.physicalAddress = physicalAddress;
-        client.mailingAddress = mailingAddress;
-        client.immigrationDetails = immigrationRows[0] ?? {};
-        client.incomeSources = incomeRows;
-      }
-    }
+    client.physicalAddress = physicalAddress;
+    client.mailingAddress = mailingAddress;
+    client.immigrationDetails = immigrationRows[0] ?? {};
+    client.incomeSources = incomeRows;
 
-    const agent = {
-      full_name: document.agent_name ?? 'No asignado',
-      email: document.agent_email ?? 'N/A',
-      phone: document.agent_phone ?? 'N/A',
-    };
+    const [agentRows]: any = await db.execute('SELECT full_name, email, phone FROM agents WHERE id = ?', [client.agent_id]);
+    const agent = agentRows[0];
 
     return res.status(200).json({
       ...document,
