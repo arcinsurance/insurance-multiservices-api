@@ -5,101 +5,62 @@ import { sendEmail } from '../utils/emailService';
 import { replaceDynamicTags } from '../utils/replaceDynamicTags';
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://crm.insurancemultiservices.com';
+const DISABLE_EMAIL = process.env.DISABLE_EMAIL === 'true';
 
 /* -------------------------------------------------------------------------- */
 /* 1. REGISTRAR DOCUMENTO A FIRMAR Y ENVIAR EMAIL                             */
 /* -------------------------------------------------------------------------- */
 export const sendDocumentForSignature = async (req: Request, res: Response) => {
   try {
-    console.log('📩 Body recibido en sendDocumentForSignature:', req.body);
-
+    console.log('📩 Body recibido:', req.body);
     const { clientId, templateId, sentById } = req.body;
     if (!clientId || !templateId || !sentById) {
-      console.warn('⚠️ Faltan campos requeridos:', { clientId, templateId, sentById });
+      console.warn('⚠️ Campos faltantes:', { clientId, templateId, sentById });
       return res.status(400).json({ error: 'Faltan clientId, templateId o sentById' });
     }
 
-    // --- Cliente ---
-    console.log('🔎 Buscando cliente con ID:', clientId);
+    console.log('🔎 Buscando cliente...');
     const [clientRows]: any = await db.execute(
       'SELECT id, name, dateOfBirth AS dob, email, agent_id FROM clients WHERE id = ? LIMIT 1',
       [clientId.toString()]
     );
-    if (!clientRows || clientRows.length === 0) {
-      console.warn('⚠️ Cliente no encontrado en DB para ID:', clientId);
-      return res.status(404).json({ error: 'Cliente no encontrado' });
-    }
+    if (!clientRows?.length) return res.status(404).json({ error: 'Cliente no encontrado' });
     const client = clientRows[0];
-    console.log('✅ Cliente encontrado:', client);
 
-    // --- Direcciones ---
     const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
-    const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
-    const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
-
-    // --- Datos adicionales ---
+    client.physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
+    client.mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
     const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
     const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
-
-    client.physicalAddress = physicalAddress;
-    client.mailingAddress = mailingAddress;
-    client.immigrationDetails = immigrationRows[0] ?? {};
+    client.immigrationDetails = immigrationRows?.[0] ?? {};
     client.incomeSources = incomeRows;
 
-    // --- Plantilla ---
-    console.log('🔎 Buscando plantilla con ID:', templateId);
+    console.log('🔎 Buscando plantilla...');
     const [templateRows]: any = await db.execute(
       'SELECT id, content, name FROM document_templates WHERE id = ? LIMIT 1',
       [templateId]
     );
-    if (!templateRows || templateRows.length === 0) {
-      console.warn('⚠️ Plantilla no encontrada:', templateId);
-      return res.status(404).json({ error: 'Plantilla no encontrada' });
-    }
+    if (!templateRows?.length) return res.status(404).json({ error: 'Plantilla no encontrada' });
     const template = templateRows[0];
-    console.log('✅ Plantilla encontrada:', template.name);
 
-    // --- Agente ---
-    let agent: any = {
-      full_name: 'nuestro equipo',
-      phone: '(813) 885-5296',
-      email: 'info@insurancemultiservices.com',
-    };
+    console.log('🔎 Buscando agente...');
+    let agent: any = { full_name: 'nuestro equipo', phone: '(813) 885-5296', email: 'info@insurancemultiservices.com' };
     if (client.agent_id) {
-      const [agentRows]: any = await db.execute(
-        'SELECT full_name, phone, email FROM agents WHERE id = ? LIMIT 1',
-        [client.agent_id]
-      );
-      if (agentRows && agentRows.length > 0) {
-        agent = agentRows[0];
-      }
+      const [agentRows]: any = await db.execute('SELECT full_name, phone, email FROM agents WHERE id = ?', [client.agent_id]);
+      if (agentRows?.length) agent = agentRows[0];
     }
-    console.log('👤 Agente asignado:', agent);
 
-    // --- Póliza ---
-    const [policyRows]: any = await db.execute(
-      'SELECT market_id FROM policies WHERE client_id = ? LIMIT 1',
-      [client.id]
-    );
-    const policy = policyRows?.[0] || {};
-    console.log('📄 Póliza encontrada (si existe):', policy);
+    const [policyRows]: any = await db.execute('SELECT market_id FROM policies WHERE client_id = ? LIMIT 1', [client.id]);
+    const policy = policyRows?.[0] ?? {};
 
-    // --- Reemplazo dinámico ---
     const combinedData = { client, agent, policy };
     const originalContent = replaceDynamicTags(template.content, combinedData);
-
-    const header = `
-      <div style="border-bottom:1px solid #ccc; padding-bottom:10px; margin-bottom:20px;">
-        <h2 style="margin:0; font-size:1.4em;">Insurance Multiservices</h2>
-        <p style="margin:0;">7902 W Waters Ave. Ste Tampa, FL 33615</p>
-        <p style="margin:0;">Tel: (813) 885-5296</p>
-      </div>
-    `;
-    const footer = `
-      <div style="border-top:1px solid #ccc; padding-top:10px; margin-top:20px; font-size:0.85em; color:#555;">
-        <p>Este documento ha sido generado por Insurance Multiservices para fines de consentimiento y verificación del cliente.</p>
-      </div>
-    `;
+    const header = `<div style="border-bottom:1px solid #ccc; padding-bottom:10px; margin-bottom:20px;">
+                      <h2 style="margin:0; font-size:1.4em;">Insurance Multiservices</h2>
+                      <p style="margin:0;">7902 W Waters Ave. Ste Tampa, FL 33615</p>
+                      <p style="margin:0;">Tel: (813) 885-5296</p></div>`;
+    const footer = `<div style="border-top:1px solid #ccc; padding-top:10px; margin-top:20px; font-size:0.85em; color:#555;">
+                      <p>Este documento ha sido generado por Insurance Multiservices para fines de consentimiento y verificación del cliente.</p></div>`;
     const fullContent = `${header}${originalContent}${footer}`;
 
     const [result]: any = await db.execute(
@@ -108,51 +69,24 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
        VALUES (?, ?, ?, ?, 'pendiente', NOW())`,
       [client.id, template.id, fullContent, sentById]
     );
-    console.log('✅ Documento insertado correctamente con ID:', result.insertId);
 
     const documentId = result.insertId;
     const signLink = `${FRONTEND_URL}/firmar/${documentId}`;
-    console.log('🔗 Enlace de firma generado:', signLink);
+    console.log('🔗 Link de firma:', signLink);
 
-    // --- Email ---
-    const currentHour = new Date().getHours();
-    const saludo = currentHour < 12 ? 'Buenos días' : currentHour < 18 ? 'Buenas tardes' : 'Buenas noches';
-
+    const saludo = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
     const subject = `Tu agente te envió un documento para firmar`;
-    const body = `
-      <p>${saludo} ${client.name},</p>
-      <p>Tu agente <strong>${agent.full_name}</strong> te ha enviado un documento para tu firma digital.</p>
-      <p style="margin-bottom: 20px;">Por favor revísalo y fírmalo usando el siguiente botón:</p>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${signLink.trim()}" style="
-          background-color: #007bff;
-          color: white;
-          padding: 12px 24px;
-          text-decoration: none;
-          border-radius: 6px;
-          display: inline-block;
-          font-weight: bold;
-          font-size: 16px;">
-          👉 Firmar Documento Ahora
-        </a>
-      </div>
-      <p style="font-size:12px; color:#555; text-align:center;">
-        Si el botón no funciona, copia y pega este enlace en tu navegador:<br/>
-        <a href="${signLink.trim()}">${signLink.trim()}</a>
-      </p>
-      <p>Si tienes alguna duda, no dudes en comunicarte conmigo.</p>
-      <p>Atentamente,<br>
-      ${agent.full_name}<br>
-      Teléfono: ${agent.phone}<br>
-      Email: ${agent.email}</p>
-    `;
+    const body = `<p>${saludo} ${client.name},</p>
+                  <p>Tu agente <strong>${agent.full_name}</strong> te ha enviado un documento para tu firma digital.</p>
+                  <p><a href="${signLink}" style="background:#007bff;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;">
+                  👉 Firmar Documento Ahora</a></p>`;
 
-    await sendEmail(client.email, subject, body);
-    console.log('📧 Correo enviado a:', client.email);
+    if (!DISABLE_EMAIL) await sendEmail(client.email, subject, body);
 
     return res.status(201).json({ message: 'Documento enviado y correo enviado correctamente' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error al enviar documento para firma:', error);
+    console.error('STACK TRACE:', error.stack);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -174,10 +108,11 @@ export const getPendingDocuments = async (req: Request, res: Response) => {
       [clientId.toString()]
     );
 
-    console.log('📄 Documentos pendientes encontrados:', rows.length);
+    console.log(`📄 Documentos pendientes encontrados: ${rows.length}`);
     return res.status(200).json(rows);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error al obtener documentos pendientes:', error);
+    console.error('STACK TRACE:', error.stack);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -204,8 +139,9 @@ export const signDocument = async (req: Request, res: Response) => {
 
     console.log('✅ Documento firmado correctamente:', documentId);
     return res.status(200).json({ message: 'Documento firmado exitosamente' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error al firmar documento:', error);
+    console.error('STACK TRACE:', error.stack);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -229,10 +165,11 @@ export const getSentDocuments = async (req: Request, res: Response) => {
       [userId.toString()]
     );
 
-    console.log('📄 Documentos enviados encontrados:', rows.length);
+    console.log(`📄 Documentos enviados encontrados: ${rows.length}`);
     return res.status(200).json(rows);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error al obtener historial de documentos enviados:', error);
+    console.error('STACK TRACE:', error.stack);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -254,34 +191,29 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
       [id.toString()]
     );
 
-    if (!docRows || docRows.length === 0) {
-      console.warn('⚠️ Documento no encontrado:', id);
-      return res.status(404).json({ error: 'Documento no encontrado' });
-    }
-
+    if (!docRows?.length) return res.status(404).json({ error: 'Documento no encontrado' });
     const document = docRows[0];
+
     const [clientRows]: any = await db.execute('SELECT * FROM clients WHERE id = ?', [document.client_id]);
-    const client = clientRows[0];
+    const client = clientRows[0] ?? {};
 
     const [addressRows]: any = await db.execute('SELECT * FROM addresses WHERE client_id = ?', [client.id]);
-    const physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
-    const mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
+    client.physicalAddress = addressRows.find((a: any) => a.type === 'physical') ?? {};
+    client.mailingAddress = addressRows.find((a: any) => a.type === 'mailing') ?? {};
 
     const [immigrationRows]: any = await db.execute('SELECT * FROM immigration_details WHERE client_id = ?', [client.id]);
     const [incomeRows]: any = await db.execute('SELECT * FROM income_sources WHERE client_id = ?', [client.id]);
-
-    client.physicalAddress = physicalAddress;
-    client.mailingAddress = mailingAddress;
-    client.immigrationDetails = immigrationRows[0] ?? {};
+    client.immigrationDetails = immigrationRows?.[0] ?? {};
     client.incomeSources = incomeRows;
 
     const [agentRows]: any = await db.execute('SELECT full_name, email, phone FROM agents WHERE id = ?', [client.agent_id]);
-    const agent = agentRows[0];
+    const agent = agentRows[0] ?? {};
 
-    console.log('✅ Documento recuperado:', document.id);
+    console.log('✅ Documento recuperado correctamente:', document.id);
     return res.status(200).json({ ...document, client, agent });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error al obtener documento firmado:', error);
+    console.error('STACK TRACE:', error.stack);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
