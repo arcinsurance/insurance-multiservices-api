@@ -2,6 +2,7 @@
 import express from 'express';
 import {
   getAllDocumentTemplates,
+  getDocumentTemplateById,  // <-- importar esto
   createDocumentTemplate,
   updateDocumentTemplate,
   deleteDocumentTemplate,
@@ -11,6 +12,9 @@ const router = express.Router();
 
 // Obtener todas las plantillas
 router.get('/', getAllDocumentTemplates);
+
+// Obtener una plantilla por ID
+router.get('/:id', getDocumentTemplateById);  // <-- ESTA ES LA RUTA QUE FALTABA
 
 // Crear una nueva plantilla
 router.post('/', createDocumentTemplate);
