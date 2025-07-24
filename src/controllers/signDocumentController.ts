@@ -1,9 +1,10 @@
+// src/controllers/signDocumentController.ts
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { sendEmail } from '../utils/emailService';
 import { replaceDynamicTags } from '../utils/replaceDynamicTags';
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://tusitio.com';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://crm.insurancemultiservices.com';
 
 /* -------------------------------------------------------------------------- */
 /* 1. REGISTRAR DOCUMENTO A FIRMAR Y ENVIAR EMAIL                             */
@@ -13,8 +14,8 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     console.log('📩 Body recibido en sendDocumentForSignature:', req.body);
 
     const { clientId, templateId, sentById } = req.body;
-
     if (!clientId || !templateId || !sentById) {
+      console.warn('⚠️ Faltan campos requeridos:', { clientId, templateId, sentById });
       return res.status(400).json({ error: 'Faltan clientId, templateId o sentById' });
     }
 
@@ -24,6 +25,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       [clientId]
     );
     if (clientRows.length === 0) {
+      console.warn('⚠️ Cliente no encontrado:', clientId);
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
     const client = clientRows[0];
@@ -46,6 +48,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       [templateId]
     );
     if (templateRows.length === 0) {
+      console.warn('⚠️ Plantilla no encontrada:', templateId);
       return res.status(404).json({ error: 'Plantilla no encontrada' });
     }
     const template = templateRows[0];
@@ -79,13 +82,11 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
         <p style="margin:0;">Tel: (813) 885-5296</p>
       </div>
     `;
-
     const footer = `
       <div style="border-top:1px solid #ccc; padding-top:10px; margin-top:20px; font-size:0.85em; color:#555;">
         <p>Este documento ha sido generado por Insurance Multiservices para fines de consentimiento y verificación del cliente.</p>
       </div>
     `;
-
     const fullContent = `${header}${originalContent}${footer}`;
 
     const [result]: any = await db.execute(
@@ -107,15 +108,10 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
     else if (currentHour < 18) saludo = 'Buenas tardes';
     else saludo = 'Buenas noches';
 
-    const agentName = agent.full_name;
-    const agentPhone = agent.phone;
-    const agentEmail = agent.email;
-
     const subject = `Tu agente te envió un documento para firmar`;
-
     const body = `
       <p>${saludo} ${client.name},</p>
-      <p>Tu agente <strong>${agentName}</strong> te ha enviado un documento para tu firma digital.</p>
+      <p>Tu agente <strong>${agent.full_name}</strong> te ha enviado un documento para tu firma digital.</p>
       <p style="margin-bottom: 20px;">Por favor revísalo y fírmalo usando el siguiente botón:</p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="${signLink.trim()}" style="
@@ -136,12 +132,13 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
       </p>
       <p>Si tienes alguna duda, no dudes en comunicarte conmigo.</p>
       <p>Atentamente,<br>
-      ${agentName}<br>
-      Teléfono: ${agentPhone}<br>
-      Email: ${agentEmail}</p>
+      ${agent.full_name}<br>
+      Teléfono: ${agent.phone}<br>
+      Email: ${agent.email}</p>
     `;
 
     await sendEmail(client.email, subject, body);
+    console.log('📧 Correo enviado a:', client.email);
 
     return res.status(201).json({ message: 'Documento enviado y correo enviado correctamente' });
   } catch (error) {
@@ -156,6 +153,7 @@ export const sendDocumentForSignature = async (req: Request, res: Response) => {
 export const getPendingDocuments = async (req: Request, res: Response) => {
   try {
     const { clientId } = req.params;
+    console.log('📥 getPendingDocuments para clientId:', clientId);
 
     const [rows]: any = await db.execute(
       `SELECT sd.*, dt.name AS template_name, dt.content AS template_content
@@ -166,6 +164,7 @@ export const getPendingDocuments = async (req: Request, res: Response) => {
       [clientId]
     );
 
+    console.log('📄 Documentos pendientes encontrados:', rows.length);
     return res.status(200).json(rows);
   } catch (error) {
     console.error('❌ Error al obtener documentos pendientes:', error);
@@ -179,8 +178,10 @@ export const getPendingDocuments = async (req: Request, res: Response) => {
 export const signDocument = async (req: Request, res: Response) => {
   try {
     const { documentId, fileUrl } = req.body;
+    console.log('✍️ Guardando firma:', { documentId, fileUrl });
 
     if (!documentId || !fileUrl) {
+      console.warn('⚠️ Faltan documentId o fileUrl');
       return res.status(400).json({ error: 'Faltan documentId o fileUrl' });
     }
 
@@ -191,6 +192,7 @@ export const signDocument = async (req: Request, res: Response) => {
       [fileUrl, documentId]
     );
 
+    console.log('✅ Documento firmado correctamente:', documentId);
     return res.status(200).json({ message: 'Documento firmado exitosamente' });
   } catch (error) {
     console.error('❌ Error al firmar documento:', error);
@@ -204,6 +206,7 @@ export const signDocument = async (req: Request, res: Response) => {
 export const getSentDocuments = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
+    console.log('📥 getSentDocuments para userId:', userId);
 
     const [rows]: any = await db.execute(
       `SELECT sd.id, sd.status, sd.created_at, sd.signed_at,
@@ -216,6 +219,7 @@ export const getSentDocuments = async (req: Request, res: Response) => {
       [userId]
     );
 
+    console.log('📄 Documentos enviados encontrados:', rows.length);
     return res.status(200).json(rows);
   } catch (error) {
     console.error('❌ Error al obtener historial de documentos enviados:', error);
@@ -229,6 +233,7 @@ export const getSentDocuments = async (req: Request, res: Response) => {
 export const getSignedDocumentById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    console.log('📥 getSignedDocumentById para id:', id);
 
     const [docRows]: any = await db.execute(
       `SELECT sd.*, c.name AS client_name, a.full_name AS agent_name
@@ -240,6 +245,7 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
     );
 
     if (docRows.length === 0) {
+      console.warn('⚠️ Documento no encontrado:', id);
       return res.status(404).json({ error: 'Documento no encontrado' });
     }
 
@@ -263,6 +269,7 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
     const [agentRows]: any = await db.execute('SELECT full_name, email, phone FROM agents WHERE id = ?', [client.agent_id]);
     const agent = agentRows[0];
 
+    console.log('✅ Documento recuperado:', document.id);
     return res.status(200).json({
       ...document,
       client,
