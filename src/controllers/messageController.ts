@@ -15,46 +15,99 @@ export const sendMessage = async (req: Request, res: Response) => {
 
     const {
       recipientId,
-      recipientType, // 'client' | 'agent'
+      recipientType, // 'client' | 'allClients' | 'agent' | 'allAgents'
       subject,
       content,
-      type, // por ahora solo 'EMAIL'
+      type, // 'EMAIL'
       senderId,
     } = req.body;
 
-    /* 🚦 Validaciones básicas */
-    if (!recipientId) {
-      return res.status(400).json({ error: 'Falta recipientId' });
+    // Validaciones generales
+    if (!['client', 'allClients', 'agent', 'allAgents'].includes(recipientType)) {
+      return res.status(400).json({ error: 'recipientType inválido (client, allClients, agent, allAgents)' });
     }
-    if (!['client', 'agent'].includes(recipientType)) {
-      return res
-        .status(400)
-        .json({ error: 'recipientType inválido (client | agent)' });
+    if ((recipientType === 'client' || recipientType === 'agent') && !recipientId) {
+      return res.status(400).json({ error: 'Falta recipientId' });
     }
     if (!content || content.trim() === '') {
       return res.status(400).json({ error: 'Falta content' });
     }
     if (type !== 'EMAIL') {
-      return res
-        .status(400)
-        .json({ error: 'type inválido (por ahora debe ser "EMAIL")' });
+      return res.status(400).json({ error: 'type inválido (por ahora debe ser "EMAIL")' });
     }
     if (!senderId) {
       return res.status(400).json({ error: 'Falta senderId' });
     }
 
-    /* 1️⃣ Guardar mensaje */
-    const insertValues = [
-      recipientId,
-      recipientType,
-      subject || null,
-      content,
-      type,
-      senderId,
-      'enviado',
-    ];
+    // Obtener nombre del remitente
+    let senderName = 'Un agente de nuestro equipo';
+    const [senderRows]: any = await db.execute(
+      `SELECT full_name FROM agents WHERE id = ? LIMIT 1`,
+      [senderId]
+    );
+    if (senderRows.length) senderName = senderRows[0].full_name;
 
-    console.log('📨 Insertando mensaje con valores:', insertValues);
+    // Envío masivo a todos los clientes o agentes
+    if (recipientType === 'allClients' || recipientType === 'allAgents') {
+      const table = recipientType === 'allClients' ? 'clients' : 'agents';
+      const [rows]: any = await db.execute(
+        `SELECT id, email FROM ${table} WHERE email IS NOT NULL AND email <> ''`
+      );
+      if (!rows.length) {
+        return res.status(404).json({ error: 'No se encontraron destinatarios.' });
+      }
+
+      for (const row of rows) {
+        await db.execute(
+          `INSERT INTO messages (
+            recipient_id,
+            recipient_type,
+            subject,
+            content,
+            type,
+            sender_id,
+            sent_date,
+            status
+          ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+          [
+            row.id,
+            table.slice(0, -1), // 'client' o 'agent'
+            subject || null,
+            content,
+            type,
+            senderId,
+            'enviado'
+          ]
+        );
+        if (recipientType === 'allClients') {
+          await sendClientMessageEmail(row.email, subject, content, senderName);
+        } else {
+          await sendSystemMessageEmail(row.email, subject, content);
+        }
+      }
+      return res.status(201).json({ success: true, message: `Mensaje enviado a ${rows.length} destinatarios.` });
+    }
+
+    // Envío individual a un cliente o agente
+    let recipientEmail: string | null = null;
+    if (recipientType === 'client') {
+      const [rows]: any = await db.execute(
+        `SELECT email FROM clients WHERE id = ? LIMIT 1`,
+        [recipientId]
+      );
+      if (rows.length) recipientEmail = rows[0].email;
+    } else if (recipientType === 'agent') {
+      const [rows]: any = await db.execute(
+        `SELECT email FROM agents WHERE id = ? LIMIT 1`,
+        [recipientId]
+      );
+      if (rows.length) recipientEmail = rows[0].email;
+    }
+    if (!recipientEmail) {
+      return res
+        .status(404)
+        .json({ error: `${recipientType === 'agent' ? 'Agente' : 'Cliente'} no encontrado` });
+    }
 
     await db.execute(
       `INSERT INTO messages (
@@ -67,67 +120,24 @@ export const sendMessage = async (req: Request, res: Response) => {
         sent_date,
         status
       ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
-      insertValues
+      [
+        recipientId,
+        recipientType,
+        subject || null,
+        content,
+        type,
+        senderId,
+        'enviado'
+      ]
     );
 
-    /* 2️⃣ Obtener email del destinatario */
-    let recipientEmail: string | null = null;
-
-    if (recipientType === 'client') {
-      const [rows]: any = await db.execute(
-        `SELECT email FROM clients WHERE id = ? LIMIT 1`,
-        [recipientId]
-      );
-      if (rows.length) recipientEmail = rows[0].email;
-    } else {
-      const [rows]: any = await db.execute(
-        `SELECT email FROM agents WHERE id = ? LIMIT 1`,
-        [recipientId]
-      );
-      if (rows.length) recipientEmail = rows[0].email;
-    }
-
-    /* 3️⃣ Obtener nombre del agente remitente (para firma) */
-    let senderName = 'Un agente de nuestro equipo';
-    const [senderRows]: any = await db.execute(
-      `SELECT full_name FROM agents WHERE id = ? LIMIT 1`,
-      [senderId]
-    );
-    if (senderRows.length) senderName = senderRows[0].full_name;
-
-    if (!recipientEmail) {
-      return res
-        .status(404)
-        .json({ error: `${recipientType === 'agent' ? 'Agente' : 'Cliente'} no encontrado` });
-    }
-
-    /* 4️⃣ Enviar correo */
     if (recipientType === 'client') {
       await sendClientMessageEmail(recipientEmail, subject, content, senderName);
     } else {
       await sendSystemMessageEmail(recipientEmail, subject, content);
     }
 
-    /* 5️⃣ Devolver mensaje recién creado para el historial */
-    const [result]: any = await db.execute(
-      `SELECT 
-         m.*, 
-         CASE 
-           WHEN m.recipient_type = 'client' THEN c.name 
-           WHEN m.recipient_type = 'agent' THEN a.full_name 
-           ELSE NULL 
-         END AS recipientName,
-         s.full_name AS senderName
-       FROM messages m
-       LEFT JOIN clients c ON m.recipient_type = 'client' AND m.recipient_id = c.id
-       LEFT JOIN agents  a ON m.recipient_type = 'agent'  AND m.recipient_id = a.id
-       LEFT JOIN agents  s ON m.sender_id = s.id
-       WHERE m.recipient_id = ? AND m.sender_id = ? AND m.sent_date IS NOT NULL
-       ORDER BY m.sent_date DESC LIMIT 1`,
-      [recipientId, senderId]
-    );
-
-    return res.status(201).json(result[0]);
+    return res.status(201).json({ success: true, message: 'Mensaje enviado con éxito.' });
 
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error);
