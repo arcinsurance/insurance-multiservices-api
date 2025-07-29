@@ -3,6 +3,7 @@ import { db } from '../config/db';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../utils/emailService';
 import { AuthenticatedRequest } from '../middlewares/verifyToken';
+import { RowDataPacket } from 'mysql2';
 
 const OTP_EXPIRATION_MINUTES = 10; // El OTP dura 10 minutos
 
@@ -22,15 +23,14 @@ export const requestOtp = async (req: Request, res: Response) => {
 
   try {
     // Verificar que el agente exista y esté activo
-    const [users] = await db.execute(
+    const [users] = await db.execute<RowDataPacket[]>(
       'SELECT id, full_name FROM agents WHERE email = ? AND is_active = 1',
       [email]
     );
-    const userList = Array.isArray(users) ? users : [];
-    if (userList.length === 0) {
+    if (users.length === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
     }
-    const user: any = userList[0];
+    const user = users[0] as { id: string; full_name: string };
 
     // Generar código OTP
     const otpCode = generateOtpCode();
@@ -64,32 +64,34 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
   try {
     // Buscar OTP válido (no usado, no expirado)
-    const [rows] = await db.execute(
+    const [rows] = await db.execute<RowDataPacket[]>(
       `SELECT id FROM otp_codes 
        WHERE email = ? AND code = ? AND used = 0 AND expires_at > NOW()`,
       [email, code]
     );
-    const validOtps = Array.isArray(rows) ? rows : [];
-    if (validOtps.length === 0) {
+    if (rows.length === 0) {
       return res.status(401).json({ message: 'Código inválido o expirado' });
     }
-
-    // Hacemos casting para que TypeScript sepa que id existe
-    const otp = validOtps[0] as { id: string };
+    const otp = rows[0] as { id: string };
 
     // Marcar OTP como usado
     await db.execute('UPDATE otp_codes SET used = 1 WHERE id = ?', [otp.id]);
 
     // Obtener info de usuario
-    const [users] = await db.execute(
+    const [users] = await db.execute<RowDataPacket[]>(
       'SELECT id, full_name, email, role, is_active FROM agents WHERE email = ? AND is_active = 1',
       [email]
     );
-    const userList = Array.isArray(users) ? users : [];
-    if (userList.length === 0) {
+    if (users.length === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
     }
-    const user: any = userList[0];
+    const user = users[0] as {
+      id: string;
+      full_name: string;
+      email: string;
+      role: string;
+      is_active: number;
+    };
 
     // Generar token JWT
     const token = jwt.sign(
@@ -117,25 +119,29 @@ export const verifyOtp = async (req: Request, res: Response) => {
 // GET /api/auth/me
 export const getCurrentUser = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!req.user?.userId) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: 'Usuario no autenticado' });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     // Consulta para obtener los datos básicos del usuario
-    const [rows] = await db.execute(
+    const [rows] = await db.execute<RowDataPacket[]>(
       'SELECT id, full_name, email, role, is_active FROM agents WHERE id = ? AND is_active = 1',
       [userId]
     );
 
-    const users = Array.isArray(rows) ? rows : [];
-
-    if (users.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
     }
 
-    const user = users[0];
+    const user = rows[0] as {
+      id: string;
+      full_name: string;
+      email: string;
+      role: string;
+      is_active: number;
+    };
 
     res.json({
       id: user.id,
