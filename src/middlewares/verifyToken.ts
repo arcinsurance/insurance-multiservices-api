@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthenticatedRequest extends Request {
-  user?: { id: string };
+  user?: { userId: string };
 }
 
 export const verifyToken = (
@@ -22,7 +22,7 @@ export const verifyToken = (
       userId: string;
     };
 
-    req.user = { id: decoded.userId }; // ✅ Aseguramos que req.user esté definido correctamente
+    req.user = { userId: decoded.userId };
     next();
   } catch (error) {
     return res.status(403).json({ error: 'Token inválido o expirado' });
