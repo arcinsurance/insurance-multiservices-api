@@ -1,4 +1,3 @@
-// src/routes/settingsRoutes.ts
 import express from 'express';
 import {
   getAgencyProfile,
@@ -8,6 +7,11 @@ import {
 } from '../controllers/settingsController';
 
 const router = express.Router();
+
+// Ruta base para /api/settings
+router.get('/', (_req, res) => {
+  res.json({ message: 'Settings API is running. Use /agency-profile or /app-settings' });
+});
 
 router.get('/agency-profile', getAgencyProfile);
 router.put('/agency-profile', updateAgencyProfile);
