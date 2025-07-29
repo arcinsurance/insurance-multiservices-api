@@ -10,8 +10,8 @@ import changePasswordRoute from './routes/changePassword';
 import productCategoryRoutes from './routes/productCategories';
 import policyRoutes from './routes/policies';
 import documentRoutes from './routes/documents';
-import messageRoutes from './routes/messages';  // <-- Aquí está el router mensajes
-import signedDocumentsRoutes from './routes/signedDocuments';  // ✅ Envío y firma de documentos
+import messageRoutes from './routes/messages';
+import signedDocumentsRoutes from './routes/signedDocuments';
 import settingsRoutes from './routes/settingsRoutes';
 import agencyLicensesRoutes from './routes/agencyLicenses';
 import carriersRoutes from './routes/carriers';
@@ -51,22 +51,22 @@ app.use(cors(corsOptions));
 app.use('/api/clients', clientRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/change-password', changePasswordRoute);  // CORREGIDO: ruta separada para cambio de contraseña
+app.use('/api/change-password', changePasswordRoute);
 app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/documents', documentRoutes);
-app.use('/api/messages', messageRoutes);  // <-- Aquí se usa el router mensajes
-app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ Ruta para firma de documentos
+app.use('/api/messages', messageRoutes);
+app.use('/api/signed-documents', signedDocumentsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/document-templates', documentTemplatesRoutes);
-app.use('/agency-licenses', agencyLicensesRoutes);
-app.use('/carriers', carriersRoutes);
-app.use('/chat-messages', chatMessagesRoutes);
-app.use('/commission-rates', commissionRatesRoutes);
-app.use('/settings-log', settingsLogRoutes);
+app.use('/api/agency-licenses', agencyLicensesRoutes);
+app.use('/api/carriers', carriersRoutes);
+app.use('/api/chat-messages', chatMessagesRoutes);
+app.use('/api/commission-rates', commissionRatesRoutes);
+app.use('/api/settings-log', settingsLogRoutes);
 
 /* ───────────── Endpoint de prueba ───────────── */
-app.get('/api/messages/test', (req, res) => {
+app.get('/api/messages/test', (_req, res) => {
   res.json({ message: 'Ruta mensajes activa' });
 });
 
