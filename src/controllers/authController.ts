@@ -20,7 +20,6 @@ export const requestOtp = async (req: Request, res: Response) => {
   if (!email) return res.status(400).json({ message: 'Email es requerido' });
 
   try {
-    // Verificar que el agente exista y esté activo
     const [users] = await db.execute(
       'SELECT id, full_name FROM agents WHERE email = ? AND is_active = 1',
       [email]
@@ -31,18 +30,16 @@ export const requestOtp = async (req: Request, res: Response) => {
     }
     const user: any = userList[0];
 
-    // Generar código OTP
     const otpCode = generateOtpCode();
-
-    // Guardar OTP en base de datos
     const expiresAt = new Date(Date.now() + OTP_EXPIRATION_MINUTES * 60000);
+
     await db.execute(
       `INSERT INTO otp_codes (id, email, code, expires_at, used)
        VALUES (UUID(), ?, ?, ?, 0)`,
       [email, otpCode, expiresAt]
     );
 
-    // Enviar correo con OTP usando sendEmail
+    // Envía email usando la función sendEmail que ya tienes
     await sendEmail(
       email,
       'Tu código de autenticación (OTP)',
@@ -62,7 +59,6 @@ export const verifyOtp = async (req: Request, res: Response) => {
   if (!email || !code) return res.status(400).json({ message: 'Email y código son requeridos' });
 
   try {
-    // Buscar OTP válido (no usado, no expirado)
     const [rows] = await db.execute(
       `SELECT id FROM otp_codes 
        WHERE email = ? AND code = ? AND used = 0 AND expires_at > NOW()`,
@@ -72,14 +68,10 @@ export const verifyOtp = async (req: Request, res: Response) => {
     if (validOtps.length === 0) {
       return res.status(401).json({ message: 'Código inválido o expirado' });
     }
-
-    // Hacemos casting para que TypeScript sepa que id existe
     const otp = validOtps[0] as { id: string };
 
-    // Marcar OTP como usado
     await db.execute('UPDATE otp_codes SET used = 1 WHERE id = ?', [otp.id]);
 
-    // Obtener info de usuario
     const [users] = await db.execute(
       'SELECT id, full_name, email, role, is_active FROM agents WHERE email = ? AND is_active = 1',
       [email]
@@ -90,7 +82,6 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
     const user: any = userList[0];
 
-    // Generar token JWT
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET || 'secret',
