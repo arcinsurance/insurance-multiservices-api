@@ -1,12 +1,18 @@
 import express from 'express';
-import { getAllCarriers, getCarrierById, createCarrier, updateCarrier, deleteCarrier } from '../controllers/carrierController';
+import { getCarriers, createCarrier, updateCarrier, deleteCarrier } from '../controllers/carrierController';
 
 const router = express.Router();
 
-router.get('/', getAllCarriers);
-router.get('/:id', getCarrierById);
+// Obtener todos los carriers
+router.get('/', getCarriers);
+
+// Crear nuevo carrier
 router.post('/', createCarrier);
+
+// Actualizar carrier por id
 router.put('/:id', updateCarrier);
+
+// Eliminar carrier por id
 router.delete('/:id', deleteCarrier);
 
 export default router;
