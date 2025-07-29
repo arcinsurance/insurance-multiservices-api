@@ -1,24 +1,30 @@
 import express from 'express';
-import { login, getCurrentUser, requestOtp, verifyOtp } from '../controllers/authController';
+import { requestOtp, verifyOtp, getCurrentUser } from '../controllers/authController';
 import { verifyToken, AuthenticatedRequest } from '../middlewares/verifyToken';
+import bcrypt from 'bcrypt';
+import { db } from '../config/db';
 
 const router = express.Router();
 
-// Puedes comentar o eliminar la ruta login tradicional si ya no usarás password
+// Si ya no usas login tradicional, elimina esta línea o coméntala
+// import { login } from '../controllers/authController';
+
+// Si no tienes login, comenta o elimina esta ruta
 // router.post('/login', login);
 
-// Nueva ruta para solicitar OTP (envía el código por email)
+// Ruta para solicitar OTP (envía el código por email)
 router.post('/request-otp', requestOtp);
 
-// Nueva ruta para verificar OTP y obtener token JWT
+// Ruta para verificar OTP y obtener token JWT
 router.post('/verify-otp', verifyOtp);
 
 // Ruta para obtener el usuario actual a partir del token
 router.get('/me', verifyToken, getCurrentUser);
 
-// Ruta protegida para cambiar la contraseña temporal (puede que ya no se use)
+// Ruta protegida para cambiar la contraseña temporal
 router.post('/change-password', verifyToken, async (req: AuthenticatedRequest, res) => {
-  const agentId = req.user?.id;
+  const agentId = req.user?.userId || req.user?.id;  // Ajusta según tu token payload
+
   const { newPassword } = req.body;
 
   if (!newPassword || newPassword.length < 6) {
