@@ -1,4 +1,3 @@
-// src/index.ts
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -14,6 +13,11 @@ import documentRoutes from './routes/documents';
 import messageRoutes from './routes/messages';  // <-- Aquí está el router mensajes
 import signedDocumentsRoutes from './routes/signedDocuments';  // ✅ Envío y firma de documentos
 import settingsRoutes from './routes/settingsRoutes';
+import agencyLicensesRoutes from './routes/agencyLicenses';
+import carriersRoutes from './routes/carriers';
+import chatMessagesRoutes from './routes/chatMessages';
+import commissionRatesRoutes from './routes/commissionRates';
+import settingsLogRoutes from './routes/settingsLog';
 
 import { db } from './config/db';
 
@@ -47,7 +51,7 @@ app.use(cors(corsOptions));
 app.use('/api/clients', clientRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/auth', changePasswordRoute);
+app.use('/api/change-password', changePasswordRoute);  // CORREGIDO: ruta separada para cambio de contraseña
 app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/documents', documentRoutes);
@@ -55,6 +59,11 @@ app.use('/api/messages', messageRoutes);  // <-- Aquí se usa el router mensajes
 app.use('/api/signed-documents', signedDocumentsRoutes); // ✅ Ruta para firma de documentos
 app.use('/api/settings', settingsRoutes);
 app.use('/api/document-templates', documentTemplatesRoutes);
+app.use('/agency-licenses', agencyLicensesRoutes);
+app.use('/carriers', carriersRoutes);
+app.use('/chat-messages', chatMessagesRoutes);
+app.use('/commission-rates', commissionRatesRoutes);
+app.use('/settings-log', settingsLogRoutes);
 
 /* ───────────── Endpoint de prueba ───────────── */
 app.get('/api/messages/test', (req, res) => {
