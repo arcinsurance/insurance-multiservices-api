@@ -1,43 +1,97 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import { db } from '../config/db';
-import { AuthenticatedRequest } from '../middlewares/verifyToken';
+import jwt from 'jsonwebtoken';
+import { sendOtpEmail } from '../utils/emailService';
 
-/* -------------------------------------------------- */
-/* POST /api/auth/login                               */
-/* -------------------------------------------------- */
-export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+const OTP_EXPIRATION_MINUTES = 10; // El OTP dura 10 minutos
+
+function generateOtpCode(length = 6): string {
+  const digits = '0123456789';
+  let otp = '';
+  for (let i = 0; i < length; i++) {
+    otp += digits[Math.floor(Math.random() * digits.length)];
+  }
+  return otp;
+}
+
+// POST /api/auth/request-otp
+export const requestOtp = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email es requerido' });
 
   try {
-    // 1. Buscar usuario activo por email
-    const [rows] = await db.execute(
-      'SELECT id, full_name, email, password, role, is_active FROM agents WHERE email = ? AND is_active = 1',
+    // Verificar que el agente exista y esté activo
+    const [users] = await db.execute(
+      'SELECT id, full_name FROM agents WHERE email = ? AND is_active = 1',
       [email]
     );
+    const userList = Array.isArray(users) ? users : [];
+    if (userList.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
+    }
+    const user: any = userList[0];
 
-    const users = Array.isArray(rows) ? rows : [];
-    if (users.length === 0) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
+    // Generar código OTP
+    const otpCode = generateOtpCode();
+
+    // Guardar OTP en base de datos
+    const expiresAt = new Date(Date.now() + OTP_EXPIRATION_MINUTES * 60000);
+    await db.execute(
+      `INSERT INTO otp_codes (id, email, code, expires_at, used)
+       VALUES (UUID(), ?, ?, ?, 0)`,
+      [email, otpCode, expiresAt]
+    );
+
+    // Enviar correo con OTP
+    await sendOtpEmail(email, user.full_name, otpCode);
+
+    res.json({ message: 'Código de autenticación enviado al correo' });
+  } catch (error) {
+    console.error('Error en requestOtp:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/auth/verify-otp
+export const verifyOtp = async (req: Request, res: Response) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ message: 'Email y código son requeridos' });
+
+  try {
+    // Buscar OTP válido (no usado, no expirado)
+    const [rows] = await db.execute(
+      `SELECT id FROM otp_codes 
+       WHERE email = ? AND code = ? AND used = 0 AND expires_at > NOW()`,
+      [email, code]
+    );
+    const validOtps = Array.isArray(rows) ? rows : [];
+    if (validOtps.length === 0) {
+      return res.status(401).json({ message: 'Código inválido o expirado' });
     }
 
-    const user: any = users[0];
+    const otp = validOtps[0];
 
-    // 2. Verificar contraseña
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
+    // Marcar OTP como usado
+    await db.execute('UPDATE otp_codes SET used = 1 WHERE id = ?', [otp.id]);
+
+    // Obtener info de usuario
+    const [users] = await db.execute(
+      'SELECT id, full_name, email, role, is_active FROM agents WHERE email = ? AND is_active = 1',
+      [email]
+    );
+    const userList = Array.isArray(users) ? users : [];
+    if (userList.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
     }
+    const user: any = userList[0];
 
-    // 3. Firmar token
+    // Generar token JWT
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '8h' }
     );
 
-    // 4. Respuesta
     res.json({
       token,
       user: {
@@ -49,43 +103,7 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
-  }
-};
-
-/* -------------------------------------------------- */
-/* GET /api/auth/me (con middleware)                  */
-/* -------------------------------------------------- */
-export const getCurrentUser = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ message: 'Token no proporcionado' });
-    }
-
-    const [rows] = await db.execute(
-      'SELECT id, full_name, email, role, is_active FROM agents WHERE id = ?',
-      [userId]
-    );
-
-    const users = Array.isArray(rows) ? rows : [];
-    if (users.length === 0) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
-
-    const user: any = users[0];
-
-    res.json({
-      id: user.id,
-      fullName: user.full_name,
-      email: user.email,
-      role: user.role,
-      isActive: !!user.is_active,
-    });
-  } catch (error) {
-    console.error('Error en /auth/me:', error);
+    console.error('Error en verifyOtp:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
