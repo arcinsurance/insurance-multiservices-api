@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 import jwt from 'jsonwebtoken';
-import { sendOtpEmail } from '../utils/emailService';
+import { sendEmail } from '../utils/emailService';
 
 const OTP_EXPIRATION_MINUTES = 10; // El OTP dura 10 minutos
 
@@ -42,8 +42,12 @@ export const requestOtp = async (req: Request, res: Response) => {
       [email, otpCode, expiresAt]
     );
 
-    // Enviar correo con OTP
-    await sendOtpEmail(email, user.full_name, otpCode);
+    // Enviar correo con OTP usando sendEmail
+    await sendEmail(
+      email,
+      'Tu código de autenticación (OTP)',
+      `Hola ${user.full_name}, tu código de acceso es: ${otpCode}. Este código expirará en ${OTP_EXPIRATION_MINUTES} minutos.`
+    );
 
     res.json({ message: 'Código de autenticación enviado al correo' });
   } catch (error) {
@@ -69,7 +73,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Código inválido o expirado' });
     }
 
-    const otp = validOtps[0];
+    // Hacemos casting para que TypeScript sepa que id existe
+    const otp = validOtps[0] as { id: string };
 
     // Marcar OTP como usado
     await db.execute('UPDATE otp_codes SET used = 1 WHERE id = ?', [otp.id]);
