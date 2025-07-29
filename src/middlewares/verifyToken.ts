@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthenticatedRequest extends Request {
-  user?: { userId: string };
+  user?: { userId: string; id?: string };
 }
 
 export const verifyToken = (
