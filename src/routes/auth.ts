@@ -17,7 +17,7 @@ router.get('/me', verifyToken, getCurrentUser);
 
 // Ruta protegida para cambiar la contraseña temporal (si aplica)
 router.post('/change-password', verifyToken, async (req: AuthenticatedRequest, res) => {
-  const agentId = req.user?.id;
+  const agentId = req.user?.userId;  // Asegúrate de usar userId
   const { newPassword } = req.body;
 
   if (!newPassword || newPassword.length < 6) {
