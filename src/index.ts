@@ -18,6 +18,7 @@ import carriersRoutes from './routes/carriers';
 import chatMessagesRoutes from './routes/chatMessages';
 import commissionRatesRoutes from './routes/commissionRates';
 import settingsLogRoutes from './routes/settingsLog';
+import leadRoutes from './routes/leadRoutes';
 
 import { db } from './config/db';
 
@@ -64,6 +65,7 @@ app.use('/api/carriers', carriersRoutes);
 app.use('/api/chat-messages', chatMessagesRoutes);
 app.use('/api/commission-rates', commissionRatesRoutes);
 app.use('/api/settings-log', settingsLogRoutes);
+app.use('/api/leads', leadRoutes);
 
 /* ───────────── Endpoint de prueba ───────────── */
 app.get('/api/messages/test', (_req, res) => {
