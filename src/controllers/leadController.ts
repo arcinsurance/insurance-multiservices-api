@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-import pool from '../db';
+import { db } from '../db';  // Importa la conexión llamada "db"
 
 export const getLeads = async (req: Request, res: Response) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM leads ORDER BY created_at DESC');
+    const [rows] = await db.query('SELECT * FROM leads ORDER BY created_at DESC');
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: 'Error obteniendo leads', error });
@@ -18,7 +18,7 @@ export const createLead = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Nombre y email son obligatorios' });
     }
 
-    const [result] = await pool.query(
+    const [result] = await db.query(
       'INSERT INTO leads (name, email, phone, message) VALUES (?, ?, ?, ?)',
       [name, email, phone || null, message || null]
     );
