@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { db } from '../db';  // Importa la conexión llamada "db"
+import { db } from '../config/db';  // Ajusta la ruta correcta
 
 export const getLeads = async (req: Request, res: Response) => {
   try {
