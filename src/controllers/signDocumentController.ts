@@ -302,3 +302,37 @@ export const getSignedDocumentById = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+/* -------------------------------------------------------------------------- */
+/* 6. ACTUALIZAR ESTADO DEL DOCUMENTO                                         */
+/* -------------------------------------------------------------------------- */
+export const updateSignedDocumentStatus = async (req: Request, res: Response) => {
+  try {
+    const { documentId } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: 'El campo status es requerido' });
+    }
+
+    const [result]: any = await db.execute(
+      `UPDATE signed_documents SET status = ? WHERE id = ?`,
+      [status, documentId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Documento no encontrado' });
+    }
+
+    // Opcional: devolver el documento actualizado
+    const [updatedRows]: any = await db.execute(
+      `SELECT * FROM signed_documents WHERE id = ?`,
+      [documentId]
+    );
+
+    return res.status(200).json(updatedRows[0]);
+  } catch (error) {
+    console.error('Error actualizando estado documento:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
