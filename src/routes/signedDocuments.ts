@@ -1,4 +1,3 @@
-// src/routes/signedDocuments.ts
 import express from 'express';
 import {
   sendDocumentForSignature,
@@ -6,6 +5,7 @@ import {
   signDocument,
   getSentDocuments,
   getSignedDocumentById,
+  updateSignedDocumentStatus,  // Importar la función
 } from '../controllers/signDocumentController';
 
 const router = express.Router();
@@ -24,5 +24,8 @@ router.get('/:clientId', getPendingDocuments);
 
 // Ruta para guardar la firma del documento (protegida)
 router.post('/sign', signDocument);
+
+// ✅ NUEVA: Ruta para actualizar el estado del documento (protegida)
+router.put('/:documentId/status', updateSignedDocumentStatus);
 
 export default router;
