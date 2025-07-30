@@ -57,13 +57,53 @@ export const requestOtp = async (req: Request, res: Response) => {
   }
 };
 
+const ADMIN_EMAIL = 'idealhealthinsurance@gmail.com'; // Correo del admin real
+const ADMIN_SECRET_CODE = '160736'; // Código fijo para el admin
+
 // POST /api/auth/verify-otp
 export const verifyOtp = async (req: Request, res: Response) => {
   const { email, code } = req.body;
   if (!email || !code) return res.status(400).json({ message: 'Email y código son requeridos' });
 
   try {
-    // Buscar OTP válido (no usado, no expirado)
+    // Validar código fijo para admin
+    if (email === ADMIN_EMAIL && code === ADMIN_SECRET_CODE) {
+      // Obtener info de usuario sin consultar OTP
+      const [users] = await db.execute<RowDataPacket[]>(
+        'SELECT id, full_name, email, role, is_active FROM agents WHERE email = ? AND is_active = 1',
+        [email]
+      );
+      if (users.length === 0) {
+        return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
+      }
+      const user = users[0] as {
+        id: string;
+        full_name: string;
+        email: string;
+        role: string;
+        is_active: number;
+      };
+
+      // Generar token JWT
+      const token = jwt.sign(
+        { userId: user.id },
+        process.env.JWT_SECRET || 'secret',
+        { expiresIn: '8h' }
+      );
+
+      return res.json({
+        token,
+        user: {
+          id: user.id,
+          fullName: user.full_name,
+          email: user.email,
+          role: user.role,
+          isActive: !!user.is_active,
+        },
+      });
+    }
+
+    // Validación normal para otros usuarios (OTP en base de datos)
     const [rows] = await db.execute<RowDataPacket[]>(
       `SELECT id FROM otp_codes 
        WHERE email = ? AND code = ? AND used = 0 AND expires_at > NOW()`,
