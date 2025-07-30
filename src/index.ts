@@ -20,7 +20,6 @@ import commissionRatesRoutes from './routes/commissionRates';
 import settingsLogRoutes from './routes/settingsLog';
 import leadRoutes from './routes/leadRoutes';
 import agencyProfileRoutes from './routes/agencyProfileRoutes';
-import testEmailRoutes from './routes/testEmailRoutes';
 
 
 import { db } from './config/db';
@@ -70,7 +69,6 @@ app.use('/api/commission-rates', commissionRatesRoutes);
 app.use('/api/settings-log', settingsLogRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/agency-profile', agencyProfileRoutes);
-app.use('/api/test-email', testEmailRoutes);
 
 /* ───────────── Endpoint de prueba ───────────── */
 app.get('/api/messages/test', (_req, res) => {
