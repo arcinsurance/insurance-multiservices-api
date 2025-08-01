@@ -1,6 +1,6 @@
 // src/services/api.ts
 
-const API_URL = import.meta.env.VITE_API_URL || process.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = process.env.VITE_API_URL || 'http://localhost:3000';
 
 const api = {
   get: async (endpoint: string, options: RequestInit = {}) => {
@@ -36,7 +36,6 @@ const api = {
     return response.json();
   },
 
-  // Si necesitas DELETE:
   delete: async (endpoint: string, options: RequestInit = {}) => {
     const response = await fetch(`${API_URL}/api${endpoint}`, {
       method: 'DELETE',
@@ -48,7 +47,6 @@ const api = {
   },
 };
 
-// ------ NUEVO: Enviar archivo adjunto (ejemplo: PDF) por email ------
 export const sendEmailWithFile = async (
   file: File,
   to: string,
@@ -64,7 +62,6 @@ export const sendEmailWithFile = async (
   const response = await fetch(`${API_URL}/api/send-email`, {
     method: 'POST',
     body: formData,
-    // No pongas Content-Type, fetch lo gestiona automáticamente con FormData
     credentials: 'include',
   });
 
