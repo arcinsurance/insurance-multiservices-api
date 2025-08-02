@@ -36,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 const allowedOrigins = [
   'https://crm.insurancemultiservices.com', // producción
   'http://localhost:5173',                  // desarrollo local
+  'http://localhost:5174',                  // desarrollo local (puerto alternativo)
 ];
 
 const corsOptions: cors.CorsOptions = {
@@ -51,6 +52,14 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 
 /* ───────────── Rutas API ───────────── */
+app.get('/', (_req, res) => {
+  res.json({ message: 'Insurance Multiservices API is running', status: 'OK' });
+});
+
+app.get('/api', (_req, res) => {
+  res.json({ message: 'Insurance Multiservices API v1.0', status: 'OK' });
+});
+
 app.use('/api/clients', clientRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
