@@ -37,6 +37,9 @@ const allowedOrigins = [
   'https://crm.insurancemultiservices.com', // producción
   'http://localhost:5173',                  // desarrollo local
   'http://localhost:5174',                  // desarrollo local (puerto alternativo)
+  'http://localhost:3000',                  // servidor build local
+
+
 ];
 
 const corsOptions: cors.CorsOptions = {
