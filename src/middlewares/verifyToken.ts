@@ -22,7 +22,7 @@ export const verifyToken = (
       userId: string;
     };
 
-    req.user = { userId: decoded.userId };
+    req.user = { userId: decoded.userId, id: decoded.userId };
     next();
   } catch (error) {
     return res.status(403).json({ error: 'Token inválido o expirado' });
