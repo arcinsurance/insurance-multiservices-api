@@ -9,24 +9,24 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 // Importar todas las rutas
-import authRoutes from './src/routes/auth.js';
-import clientRoutes from './src/routes/clients.js';
-import agentRoutes from './src/routes/agents.js';
-import productRoutes from './src/routes/products.js';
-import carrierRoutes from './src/routes/carriers.js';
-import settingsRoutes from './src/routes/settingsRoutes.js';
-import documentRoutes from './src/routes/documents.js';
-import signedDocumentRoutes from './src/routes/signedDocuments.js';
-import documentTemplateRoutes from './src/routes/documentTemplates.js';
-import messageRoutes from './src/routes/messages.js';
-import chatMessageRoutes from './src/routes/chatMessages.js';
-import commissionRateRoutes from './src/routes/commissionRates.js';
-import agencyLicenseRoutes from './src/routes/agencyLicenses.js';
-import agencyProfileRoutes from './src/routes/agencyProfileRoutes.js';
-import productCategoryRoutes from './src/routes/productCategories.js';
-import leadRoutes from './src/routes/leadRoutes.js';
-import settingsLogRoutes from './src/routes/settingsLog.js';
-import changePasswordRoutes from './src/routes/changePassword.js';
+import authRoutes from './routes/auth.js';
+import clientRoutes from './routes/clients.js';
+import agentRoutes from './routes/agents.js';
+import productRoutes from './routes/products.js';
+import carrierRoutes from './routes/carriers.js';
+import settingsRoutes from './routes/settingsRoutes.js';
+import documentRoutes from './routes/documents.js';
+import signedDocumentRoutes from './routes/signedDocuments.js';
+import documentTemplateRoutes from './routes/documentTemplates.js';
+import messageRoutes from './routes/messages.js';
+import chatMessageRoutes from './routes/chatMessages.js';
+import commissionRateRoutes from './routes/commissionRates.js';
+import agencyLicenseRoutes from './routes/agencyLicenses.js';
+import agencyProfileRoutes from './routes/agencyProfileRoutes.js';
+import productCategoryRoutes from './routes/productCategories.js';
+import leadRoutes from './routes/leadRoutes.js';
+import settingsLogRoutes from './routes/settingsLog.js';
+import changePasswordRoutes from './routes/changePassword.js';
 
 // Configurar __dirname para ES modules
 const __filename = fileURLToPath(import.meta.url);
