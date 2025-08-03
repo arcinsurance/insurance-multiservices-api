@@ -95,7 +95,7 @@ const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
-    await db.authenticate();
+    await db.getConnection().then(connection => connection.release());
     console.log(" Conexión a MySQL establecida");
     
     app.listen(PORT, () => {
