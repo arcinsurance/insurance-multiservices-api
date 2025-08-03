@@ -1,25 +1,25 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import documentTemplatesRoutes from "./routes/documentTemplates";
-import clientRoutes from "./routes/clients";
-import agentRoutes from "./routes/agents";
-import authRoutes from "./routes/auth";
-import changePasswordRoute from "./routes/changePassword";
-import productCategoryRoutes from "./routes/productCategories";
-import policyRoutes from "./routes/policies";
-import documentRoutes from "./routes/documents";
-import messageRoutes from "./routes/messages";
-import signedDocumentsRoutes from "./routes/signedDocuments";
-import settingsRoutes from "./routes/settingsRoutes";
-import agencyLicensesRoutes from "./routes/agencyLicenses";
-import carriersRoutes from "./routes/carriers";
-import chatMessagesRoutes from "./routes/chatMessages";
-import commissionRatesRoutes from "./routes/commissionRates";
-import settingsLogRoutes from "./routes/settingsLog";
-import leadRoutes from "./routes/leadRoutes";
-import agencyProfileRoutes from "./routes/agencyProfileRoutes";
-import { db } from "./config/db";
+import documentTemplatesRoutes from "./routes/documentTemplates.js";
+import clientRoutes from "./routes/clients.js";
+import agentRoutes from "./routes/agents.js";
+import authRoutes from "./routes/auth.js";
+import changePasswordRoute from "./routes/changePassword.js";
+import productCategoryRoutes from "./routes/productCategories.js";
+import policyRoutes from "./routes/policies.js";
+import documentRoutes from "./routes/documents.js";
+import messageRoutes from "./routes/messages.js";
+import signedDocumentsRoutes from "./routes/signedDocuments.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
+import agencyLicensesRoutes from "./routes/agencyLicenses.js";
+import carriersRoutes from "./routes/carriers.js";
+import chatMessagesRoutes from "./routes/chatMessages.js";
+import commissionRatesRoutes from "./routes/commissionRates.js";
+import settingsLogRoutes from "./routes/settingsLog.js";
+import leadRoutes from "./routes/leadRoutes.js";
+import agencyProfileRoutes from "./routes/agencyProfileRoutes.js";
+import { db } from "./config/db.js";
 
 dotenv.config();
 const app = express();
@@ -49,7 +49,7 @@ const corsOptions: cors.CorsOptions = {
       console.log(" CORS - Origen permitido");
       callback(null, true);
     } else {
-      console.log(" CORS - Origen NO permitido. Orígenes permitidos:", allowedOrigins);
+      console.log(" CORS - Origen NO permitido. Orï¿½genes permitidos:", allowedOrigins);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -80,7 +80,7 @@ app.use("/api/settings-log", settingsLogRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/agency-profile", agencyProfileRoutes);
 
-/* Ruta básica */
+/* Ruta bï¿½sica */
 app.get("/", (req, res) => {
   res.json({
     message: "Insurance Multiservices API - Funcionando ",
@@ -90,13 +90,13 @@ app.get("/", (req, res) => {
   });
 });
 
-/* Inicialización del servidor */
+/* Inicializaciï¿½n del servidor */
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
     await db.getConnection().then(connection => connection.release());
-    console.log(" Conexión a MySQL establecida");
+    console.log(" Conexiï¿½n a MySQL establecida");
     
     app.listen(PORT, () => {
       console.log(` Servidor corriendo en puerto ${PORT}`);
