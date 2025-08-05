@@ -349,3 +349,31 @@ export const updateSignedDocumentStatus = async (req: Request, res: Response) =>
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+/* -------------------------------------------------------------------------- */
+/* 7. OBTENER TODOS LOS DOCUMENTOS FIRMADOS/SOLICITADOS                        */
+/* -------------------------------------------------------------------------- */
+/**
+ * Devuelve una lista de todos los documentos registrados en el sistema,
+ * independientemente de su estado. Este endpoint se utiliza para mostrar
+ * un historial completo en el panel de administración. Incluye detalles
+ * del cliente, la plantilla y la fecha de creación y firma.
+ */
+export const getAllSignedDocuments = async (_req: Request, res: Response) => {
+  try {
+    const [rows]: any = await db.query(
+      `SELECT sd.id, sd.status, sd.created_at, sd.signed_at,
+              c.name AS client_name, dt.name AS template_name, sd.client_id, sd.template_id, sd.sent_by_id,
+              sd.file_url
+       FROM signed_documents sd
+       JOIN clients c ON sd.client_id = c.id
+       JOIN document_templates dt ON sd.template_id = dt.id
+       ORDER BY sd.created_at DESC`
+    );
+    return res.status(200).json(rows);
+  } catch (error: any) {
+    console.error('❌ Error al obtener todos los documentos firmados:', error);
+    console.error('STACK TRACE:', error.stack);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
