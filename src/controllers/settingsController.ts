@@ -21,7 +21,23 @@ export const getAgencyProfile = async (req: Request, res: Response) => {
 
       res.json(formattedAgency);
     } else {
-      res.status(404).json({ message: 'Agency profile not found' });
+      // Si no hay registro, devolver un objeto por defecto para evitar errores en el frontend
+      const defaultAgency = {
+        id: null,
+        agency_name: '',
+        address: '',
+        phone: '',
+        email: '',
+        contact_person: '',
+        license_number: '',
+        logo_url: '',
+        // Propiedades mapeadas
+        logoUrl: '',
+        name: '',
+        contactPerson: '',
+        agencyId: '',
+      };
+      res.json(defaultAgency);
     }
   } catch (error) {
     res.status(500).json({ message: 'Error fetching agency profile', error });
@@ -94,7 +110,23 @@ export const getAppSettings = async (req: Request, res: Response) => {
 
       res.json(formatted);
     } else {
-      res.status(404).json({ message: 'App settings not found' });
+      // Si no hay registro, devolver un objeto de configuración por defecto para evitar 404
+      const defaultSettings = {
+        integrations: {
+          emailNotifications: false,
+          eSignature: false,
+          smsNotifications: false,
+        },
+        general: {
+          timezone: '',
+          language: 'es',
+        },
+        security: {
+          passwordPolicy: 'Medium',
+          twoFactorAuth: false,
+        },
+      };
+      res.json(defaultSettings);
     }
   } catch (error) {
     res.status(500).json({ message: 'Error fetching app settings', error });

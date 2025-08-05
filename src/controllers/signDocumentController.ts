@@ -353,12 +353,6 @@ export const updateSignedDocumentStatus = async (req: Request, res: Response) =>
 /* -------------------------------------------------------------------------- */
 /* 7. OBTENER TODOS LOS DOCUMENTOS FIRMADOS/SOLICITADOS                        */
 /* -------------------------------------------------------------------------- */
-/**
- * Devuelve una lista de todos los documentos registrados en el sistema,
- * independientemente de su estado. Este endpoint se utiliza para mostrar
- * un historial completo en el panel de administración. Incluye detalles
- * del cliente, la plantilla y la fecha de creación y firma.
- */
 export const getAllSignedDocuments = async (_req: Request, res: Response) => {
   try {
     const [rows]: any = await db.query(
