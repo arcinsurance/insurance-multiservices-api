@@ -8,14 +8,21 @@ import { v4 as uuidv4 } from 'uuid';
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const { name, description = '', is_active = true } = req.body;
+    // Avoid creating duplicate products by name (case insensitive).
+    // Check if a product with the same name already exists.
+    const [existing] = await db.query(
+      `SELECT id FROM products WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+      [name]
+    ) as any;
+    if (existing && existing.length > 0) {
+      return res.status(400).json({ error: 'Product with this name already exists' });
+    }
     const productId = uuidv4();
-
     await db.query(
       `INSERT INTO products (id, name, description, is_active)
        VALUES (?, ?, ?, ?)`,
       [productId, name, description, is_active]
     );
-
     res.status(201).json({ message: 'Product created', id: productId });
   } catch (err) {
     console.error('Error creating product:', err);
