@@ -85,6 +85,10 @@ app.use('/api/chat/messages', chatMessagesRoutes);
 app.use('/api/settings/log', settingsLogRoutes);
 
 app.use('/api/agency-profile', agencyProfileRoutes);
+app.use('/api/users', agentRoutes);
+app.use('/api/chat/messages', chatMessagesRoutes);
+app.use('/api/settings/log', settingsLogRoutes);
+
 
 /* ───────────── Endpoint de prueba ───────────── */
 app.get('/api/messages/test', (_req, res) => {
