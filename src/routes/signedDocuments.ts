@@ -6,12 +6,16 @@ import {
   getSentDocuments,
   getSignedDocumentById,
   updateSignedDocumentStatus,  // Importar la función
+  getAllSignedDocuments,
 } from '../controllers/signDocumentController';
 
 const router = express.Router();
 
 // ✅ Ruta para obtener un documento individual por ID (pública)
 router.get('/view/:id', getSignedDocumentById);
+
+// ✅ Ruta para obtener todos los documentos (protegida) para listar historial general
+router.get('/', getAllSignedDocuments);
 
 // ✅ Ruta para obtener documentos enviados por un usuario (protegida)
 router.get('/sent/:userId', getSentDocuments);
