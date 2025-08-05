@@ -17,5 +17,10 @@ router.get('/agency-profile', getAgencyProfile);
 router.put('/agency-profile', updateAgencyProfile);
 router.get('/app-settings', getAppSettings);
 router.put('/app-settings', updateAppSettings);
+router.get('/profile', getAgencyProfile);
+router.put('/profile', updateAgencyProfile);
+router.get('/app', getAppSettings);
+router.put('/app', updateAppSettings);
+
 
 export default router;
