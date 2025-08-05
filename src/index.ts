@@ -77,18 +77,16 @@ app.use('/api/document-templates', documentTemplatesRoutes);
 app.use('/api/agency-licenses', agencyLicensesRoutes);
 app.use('/api/carriers', carriersRoutes);
 app.use('/api/chat-messages', chatMessagesRoutes);
+// Alias de chat para la API de mensajes: proporciona /api/chat/messages además de /api/chat-messages
+app.use('/api/chat/messages', chatMessagesRoutes);
+// Alias de usuarios: el frontend espera /api/users pero internamente usamos agents
+app.use('/api/users', agentRoutes);
 app.use('/api/commission-rates', commissionRatesRoutes);
 app.use('/api/settings-log', settingsLogRoutes);
+// Alias para obtener historial de configuración: /api/settings/log -> settingsLogController
+app.use('/api/settings/log', settingsLogRoutes);
 app.use('/api/leads', leadRoutes);
-app.use('/api/users', agentRoutes);
-app.use('/api/chat/messages', chatMessagesRoutes);
-app.use('/api/settings/log', settingsLogRoutes);
-
 app.use('/api/agency-profile', agencyProfileRoutes);
-app.use('/api/users', agentRoutes);
-app.use('/api/chat/messages', chatMessagesRoutes);
-app.use('/api/settings/log', settingsLogRoutes);
-
 
 /* ───────────── Endpoint de prueba ───────────── */
 app.get('/api/messages/test', (_req, res) => {
