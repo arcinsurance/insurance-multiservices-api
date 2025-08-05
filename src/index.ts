@@ -80,6 +80,10 @@ app.use('/api/chat-messages', chatMessagesRoutes);
 app.use('/api/commission-rates', commissionRatesRoutes);
 app.use('/api/settings-log', settingsLogRoutes);
 app.use('/api/leads', leadRoutes);
+app.use('/api/users', agentRoutes);
+app.use('/api/chat/messages', chatMessagesRoutes);
+app.use('/api/settings/log', settingsLogRoutes);
+
 app.use('/api/agency-profile', agencyProfileRoutes);
 
 /* ───────────── Endpoint de prueba ───────────── */
