@@ -1,38 +1,40 @@
-// src/models/address.ts
 import { db } from '../config/db';
 
+// Trae direcciones de un cliente por su ID
 export async function getAddressesByClientId(clientId: string) {
-  const [rows]: [any[], any] = await db.query('SELECT * FROM client_addresses WHERE client_id = ?', [clientId]);
+  const [rows] = await db.query('SELECT * FROM client_addresses WHERE client_id = ?', [clientId]);
   return rows;
 }
 
-export async function createAddressInDB(addressData: any) {
-  const [result]: any = await db.query(
+// Crea una dirección para un cliente
+export async function createAddressForClient(clientId: string, address: any) {
+  const [result] = await db.query(
     `INSERT INTO client_addresses (client_id, line1, line2, city, state, zip_code, type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
-      addressData.clientId,
-      addressData.line1,
-      addressData.line2,
-      addressData.city,
-      addressData.state,
-      addressData.zip_code,
-      addressData.type // 'physical' o 'mailing'
+      clientId,
+      address.line1,
+      address.line2,
+      address.city,
+      address.state,
+      address.zip_code,
+      address.type || 'physical'
     ]
   );
-  return { ...addressData, id: result.insertId };
+  return result;
 }
 
-export async function updateAddressInDB(clientId: string, addressData: any, type: string) {
-  const [result]: any = await db.query(
+// Actualiza una dirección existente de un cliente
+export async function updateAddressForClient(clientId: string, address: any) {
+  const [result] = await db.query(
     `UPDATE client_addresses SET line1=?, line2=?, city=?, state=?, zip_code=? WHERE client_id=? AND type=?`,
     [
-      addressData.line1,
-      addressData.line2,
-      addressData.city,
-      addressData.state,
-      addressData.zip_code,
+      address.line1,
+      address.line2,
+      address.city,
+      address.state,
+      address.zip_code,
       clientId,
-      type
+      address.type || 'physical'
     ]
   );
   return result;
