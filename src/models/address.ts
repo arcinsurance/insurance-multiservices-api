@@ -1,47 +1,73 @@
 // src/models/address.ts
 import { db } from '../config/db';
 
+// Normaliza el objeto address para aceptar tanto camelCase como snake_case
+function normalizeAddress(address: any) {
+  return {
+    line1: address.line1 || address.line_1 || '',
+    line2: address.line2 || address.line_2 || '',
+    city: address.city || '',
+    state: address.state || '',
+    zip_code: address.zipCode || address.zip_code || '',
+    type: address.type || 'physical',
+  };
+}
+
 // Trae direcciones de un cliente por su ID
 export async function getAddressesByClientId(clientId: string) {
-  const [rows]: [any[], any] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]);
+  const [rows]: [any[], any] = await db.query(
+    'SELECT * FROM addresses WHERE client_id = ?', [clientId]
+  );
   return rows;
 }
 
 // Crea una dirección para un cliente
 export async function createAddressForClient(clientId: string, address: any) {
+  const addr = normalizeAddress(address);
   const [result]: [any, any] = await db.query(
-    `INSERT INTO addresses (client_id, line1, line2, city, state, zip_code, type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO addresses (client_id, line1, line2, city, state, zip_code, type)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       clientId,
-      address.line1,
-      address.line2,
-      address.city,
-      address.state,
-      address.zip_code,
-      address.type || 'physical'
+      addr.line1,
+      addr.line2,
+      addr.city,
+      addr.state,
+      addr.zip_code,
+      addr.type
     ]
   );
-  return result;
+  // Devuelve la dirección creada
+  const [rows]: [any[], any] = await db.query(
+    `SELECT * FROM addresses WHERE id = ?`, [result.insertId]
+  );
+  return rows[0];
 }
 
-// Actualiza una dirección existente de un cliente
+// Actualiza una dirección existente de un cliente (por tipo)
 export async function updateAddressForClient(clientId: string, address: any) {
+  const addr = normalizeAddress(address);
   const [result]: [any, any] = await db.query(
-    `UPDATE addresses SET line1=?, line2=?, city=?, state=?, zip_code=? WHERE client_id=? AND type=?`,
+    `UPDATE addresses SET line1=?, line2=?, city=?, state=?, zip_code=?
+     WHERE client_id=? AND type=?`,
     [
-      address.line1,
-      address.line2,
-      address.city,
-      address.state,
-      address.zip_code,
+      addr.line1,
+      addr.line2,
+      addr.city,
+      addr.state,
+      addr.zip_code,
       clientId,
-      address.type || 'physical'
+      addr.type
     ]
   );
-  return result;
+  // Devuelve la dirección actualizada
+  const [rows]: [any[], any] = await db.query(
+    `SELECT * FROM addresses WHERE client_id=? AND type=?`,
+    [clientId, addr.type]
+  );
+  return rows[0];
 }
 
-// ====> Export default para compatibilidad con imports modernos
 export default {
   getAddressesByClientId,
   createAddressForClient,
