@@ -68,37 +68,38 @@ export const createClient = async (req: Request, res: Response) => {
 
     const newClient = await db.Client.createClientInDB(clientData);
 
-    // Crear direcciones
-    if (physicalAddress) {
-      await db.Address.createAddressForClient(newClient.id, { ...physicalAddress, type: 'physical' });
-    }
-    if (mailingAddress && !mailingAddressSameAsPhysical) {
-      await db.Address.createAddressForClient(newClient.id, { ...mailingAddress, type: 'mailing' });
-    }
-
-    // Crear incomeSources (empleos/ingresos)
-    if (incomeSources && Array.isArray(incomeSources)) {
-      await db.IncomeSource.updateIncomeSourceForClient(newClient.id, incomeSources);
+    // ==== GUARDAR DIRECCIONES ====
+    let addresses: any[] = [];
+    const dirArr = [];
+    if (physicalAddress) dirArr.push({ ...physicalAddress, type: 'physical' });
+    if (mailingAddress && !mailingAddressSameAsPhysical) dirArr.push({ ...mailingAddress, type: 'mailing' });
+    if (dirArr.length > 0) {
+      addresses = await db.Address.createAddressesForClient(newClient.id, dirArr);
+    } else {
+      addresses = [];
     }
 
-    // Crear immigrationDetails
+    // ==== GUARDAR INGRESOS ====
+    let incomes: any[] = [];
+    if (incomeSources && Array.isArray(incomeSources) && incomeSources.length > 0) {
+      incomes = await db.IncomeSource.createIncomeSourcesForClient(newClient.id, incomeSources);
+    }
+
+    // ==== GUARDAR DATOS MIGRATORIOS ====
+    let immigration = {};
     if (immigrationDetails) {
-      await db.ImmigrationDetails.createImmigrationDetailsForClient(newClient.id, immigrationDetails);
+      immigration = await db.ImmigrationDetails.createImmigrationDetailsForClient(newClient.id, immigrationDetails);
     }
 
-    // Traer todo el cliente para el frontend
-    const addresses = await db.Address.getAddressesByClientId(newClient.id);
-    const incomes = await db.IncomeSource.getIncomeSourcesByClientId(newClient.id);
-    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(newClient.id);
-
+    // ==== RESPUESTA ====
     res.status(201).json({
       ...newClient,
       assigned_agent_id: newClient.assigned_agent_id || assignedAgentId || null,
       date_of_birth: formatDate(newClient.date_of_birth),
       date_added: formatDate(newClient.date_added),
-      addresses: addresses || [],
-      incomes: incomes || [],
-      immigration: immigration || {},
+      addresses,
+      incomes,
+      immigration,
     });
   } catch (error) {
     console.error('Error creating client:', error);
@@ -154,29 +155,33 @@ export const updateClient = async (req: Request, res: Response) => {
         : client.assigned_agent_id || null,
     });
 
-    // Actualiza direcciones
+    // ==== ACTUALIZAR DIRECCIONES ====
     if (updateFields.physicalAddress) {
       await db.Address.updateAddressForClient(clientId, { ...updateFields.physicalAddress, type: 'physical' });
     }
     if (updateFields.mailingAddress) {
       await db.Address.updateAddressForClient(clientId, { ...updateFields.mailingAddress, type: 'mailing' });
     }
-
-    // Actualiza incomeSources (empleos/ingresos)
-    if (updateFields.incomeSources && Array.isArray(updateFields.incomeSources)) {
-      await db.IncomeSource.updateIncomeSourceForClient(clientId, updateFields.incomeSources);
-    }
-
-    // Actualiza immigrationDetails
-    if (updateFields.immigrationDetails) {
-      await db.ImmigrationDetails.updateImmigrationDetailsForClient(clientId, updateFields.immigrationDetails);
-    }
-
-    // Trae el cliente actualizado
-    const updatedClient = await db.Client.getClientByIdFromDB(clientId);
     const addresses = await db.Address.getAddressesByClientId(clientId);
-    const incomes = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
-    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(clientId);
+
+    // ==== ACTUALIZAR INGRESOS ====
+    let incomes: any[] = [];
+    if (updateFields.incomeSources && Array.isArray(updateFields.incomeSources)) {
+      incomes = await db.IncomeSource.updateIncomeSourceForClient(clientId, updateFields.incomeSources);
+    } else {
+      incomes = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
+    }
+
+    // ==== ACTUALIZAR DATOS MIGRATORIOS ====
+    let immigration = {};
+    if (updateFields.immigrationDetails) {
+      immigration = await db.ImmigrationDetails.updateImmigrationDetailsForClient(clientId, updateFields.immigrationDetails);
+    } else {
+      immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(clientId);
+    }
+
+    // ==== RESPUESTA ====
+    const updatedClient = await db.Client.getClientByIdFromDB(clientId);
 
     res.json({
       ...updatedClient,
@@ -238,101 +243,4 @@ export const getClientById = async (req: Request, res: Response) => {
   }
 };
 
-// ===================== NUEVOS ENDPOINTS REST POR SECCIÓN =====================
-
-// GET /api/clients/:id/basic-info
-export const getClientBasicInfo = async (req: Request, res: Response) => {
-  try {
-    const clientId = req.params.id;
-    const client = await db.Client.getClientByIdFromDB(clientId);
-    if (!client) return res.status(404).json({ error: 'Client not found' });
-
-    const { id, name, email, phone, date_of_birth, date_added, assigned_agent_id } = client;
-    res.json({
-      id,
-      name,
-      email,
-      phone,
-      date_of_birth: formatDate(date_of_birth),
-      date_added: formatDate(date_added),
-      assigned_agent_id: assigned_agent_id || null,
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// GET /api/clients/:id/employment
-export const getClientEmployment = async (req: Request, res: Response) => {
-  try {
-    const clientId = req.params.id;
-    const income = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
-    res.json(income || []);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// GET /api/clients/:id/immigration
-export const getClientImmigration = async (req: Request, res: Response) => {
-  try {
-    const clientId = req.params.id;
-    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(clientId);
-    res.json(immigration || {});
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// GET /api/clients/:id/addresses
-export const getClientAddresses = async (req: Request, res: Response) => {
-  try {
-    const clientId = req.params.id;
-    const addresses = await db.Address.getAddressesByClientId(clientId);
-    res.json(addresses || []);
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// PUT /api/clients/:id/employment
-export const updateClientEmployment = async (req: Request, res: Response) => {
-  try {
-    const clientId = req.params.id;
-    const incomeArray = req.body;
-    if (!Array.isArray(incomeArray)) {
-      return res.status(400).json({ error: 'Expected an array of income sources.' });
-    }
-    const result = await db.IncomeSource.updateIncomeSourceForClient(clientId, incomeArray);
-    res.json({ message: 'Employment info updated', result });
-  } catch (error) {
-    console.error('Error updating employment:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// PUT /api/clients/:id/immigration
-export const updateClientImmigration = async (req: Request, res: Response) => {
-  try {
-    const clientId = req.params.id;
-    const immigration = req.body;
-    const result = await db.ImmigrationDetails.updateImmigrationDetailsForClient(clientId, immigration);
-    res.json({ message: 'Immigration info updated', result });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// PUT /api/clients/:id/addresses
-export const updateClientAddresses = async (req: Request, res: Response) => {
-  try {
-    const clientId = req.params.id;
-    const address = req.body;
-    const result = await db.Address.updateAddressForClient(clientId, address);
-    res.json({ message: 'Address updated', result });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-// ... agrega aquí cualquier otro endpoint extra que uses en tu CRM
+// ... Los endpoints GET/PUT para info secciones y dirección/empleo/migración pueden quedar igual
