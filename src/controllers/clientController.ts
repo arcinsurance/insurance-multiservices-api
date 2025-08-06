@@ -8,6 +8,7 @@ const db = models;
 
 // Helper para formato de fecha US
 function formatDate(dateString: string | Date): string {
+  if (!dateString) return '';
   try {
     const date = typeof dateString === 'string'
       ? parse(dateString, 'yyyy-MM-dd', new Date())
@@ -24,6 +25,7 @@ export const createClient = async (req: Request, res: Response) => {
   try {
     const {
       firstName, lastName, email, phone, dateOfBirth,
+      assignedAgentId,
       physicalAddress, mailingAddress, mailingAddressSameAsPhysical,
       incomeSources, immigrationDetails,
     } = req.body;
@@ -48,12 +50,13 @@ export const createClient = async (req: Request, res: Response) => {
       dob = isValid(dateObj) ? format(dateObj, 'yyyy-MM-dd') : '';
     }
 
-    // Crear cliente
+    // Crear cliente (incluye assigned_agent_id)
     const clientData = {
       name: `${firstName} ${lastName}`,
       email,
       phone,
-      date_of_birth: dob
+      date_of_birth: dob,
+      assigned_agent_id: assignedAgentId || null,
     };
     const newClient = await db.Client.createClientInDB(clientData);
 
@@ -84,6 +87,9 @@ export const createClient = async (req: Request, res: Response) => {
 
     res.status(201).json({
       ...newClient,
+      assigned_agent_id: newClient.assigned_agent_id || assignedAgentId || null,
+      date_of_birth: formatDate(newClient.date_of_birth),
+      date_added: formatDate(newClient.date_added),
       addresses,
       incomes,
       immigration
@@ -127,7 +133,10 @@ export const updateClient = async (req: Request, res: Response) => {
       name: `${updateFields.firstName || client.name.split(' ')[0]} ${updateFields.lastName || client.name.split(' ')[1] || ''}`,
       email: updateFields.email || client.email,
       phone: updateFields.phone || client.phone,
-      date_of_birth: updateFields.dateOfBirth || client.date_of_birth
+      date_of_birth: updateFields.dateOfBirth || client.date_of_birth,
+      assigned_agent_id: updateFields.assignedAgentId !== undefined
+        ? updateFields.assignedAgentId
+        : client.assigned_agent_id || null,
     });
 
     // Actualiza direcciones
@@ -158,6 +167,9 @@ export const updateClient = async (req: Request, res: Response) => {
 
     res.json({
       ...updatedClient,
+      assigned_agent_id: updatedClient.assigned_agent_id,
+      date_of_birth: formatDate(updatedClient.date_of_birth),
+      date_added: formatDate(updatedClient.date_added),
       addresses,
       incomes,
       immigration
@@ -172,7 +184,14 @@ export const updateClient = async (req: Request, res: Response) => {
 export const getClients = async (_req: Request, res: Response) => {
   try {
     const clients = await db.Client.getClientsFromDB();
-    res.json(clients);
+    res.json(
+      clients.map((client: any) => ({
+        ...client,
+        assigned_agent_id: client.assigned_agent_id || null,
+        date_of_birth: formatDate(client.date_of_birth),
+        date_added: formatDate(client.date_added)
+      }))
+    );
   } catch (error) {
     console.error('Error fetching clients:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -192,6 +211,9 @@ export const getClientById = async (req: Request, res: Response) => {
 
     res.json({
       ...client,
+      assigned_agent_id: client.assigned_agent_id || null,
+      date_of_birth: formatDate(client.date_of_birth),
+      date_added: formatDate(client.date_added),
       addresses,
       incomes,
       immigration
@@ -211,8 +233,16 @@ export const getClientBasicInfo = async (req: Request, res: Response) => {
     const client = await db.Client.getClientByIdFromDB(clientId);
     if (!client) return res.status(404).json({ error: 'Client not found' });
 
-    const { id, name, email, phone, date_of_birth, date_added } = client;
-    res.json({ id, name, email, phone, date_of_birth, date_added });
+    const { id, name, email, phone, date_of_birth, date_added, assigned_agent_id } = client;
+    res.json({
+      id,
+      name,
+      email,
+      phone,
+      date_of_birth: formatDate(date_of_birth),
+      date_added: formatDate(date_added),
+      assigned_agent_id: assigned_agent_id || null,
+    });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -251,7 +281,7 @@ export const getClientAddresses = async (req: Request, res: Response) => {
   }
 };
 
-// ===================== PUT /api/clients/:id/employment =====================
+// PUT /api/clients/:id/employment
 export const updateClientEmployment = async (req: Request, res: Response) => {
   try {
     const clientId = req.params.id;
@@ -263,7 +293,7 @@ export const updateClientEmployment = async (req: Request, res: Response) => {
   }
 };
 
-// ===================== PUT /api/clients/:id/immigration =====================
+// PUT /api/clients/:id/immigration
 export const updateClientImmigration = async (req: Request, res: Response) => {
   try {
     const clientId = req.params.id;
@@ -275,7 +305,7 @@ export const updateClientImmigration = async (req: Request, res: Response) => {
   }
 };
 
-// ===================== PUT /api/clients/:id/addresses =====================
+// PUT /api/clients/:id/addresses
 export const updateClientAddresses = async (req: Request, res: Response) => {
   try {
     const clientId = req.params.id;
@@ -286,3 +316,6 @@ export const updateClientAddresses = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// Puedes agregar aquí cualquier otro endpoint extra que uses en tu CRM.
+
