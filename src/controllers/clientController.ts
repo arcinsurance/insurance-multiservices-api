@@ -1,9 +1,11 @@
+// src/controllers/clientController.ts
+
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as models from '../models';
 import { isValid, parse, format } from 'date-fns';
 
-const db = models; // <--- IMPORTANTE
+const db = models; // <<---- ESTA LÍNEA ES FUNDAMENTAL
 
 // Helper para formato de fecha US
 function formatDate(dateString: string | Date): string {
@@ -147,7 +149,7 @@ export const updateClient = async (req: Request, res: Response) => {
         await db.IncomeSource.create({ ...source, clientId });
       }
     }
-    // IMMIGRATION: Upsert manual
+    // Upsert manual para ImmigrationDetails
     if (updateFields.immigrationDetails) {
       const [record, created] = await db.ImmigrationDetails.findOrCreate({
         where: { clientId },
