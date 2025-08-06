@@ -21,7 +21,7 @@ export async function getAddressesByClientId(clientId: string) {
   return rows;
 }
 
-// Crea una dirección para un cliente
+// Crea UNA dirección para un cliente
 export async function createAddressForClient(clientId: string, address: any) {
   const addr = normalizeAddress(address);
   const [result]: [any, any] = await db.query(
@@ -42,6 +42,17 @@ export async function createAddressForClient(clientId: string, address: any) {
     `SELECT * FROM addresses WHERE id = ?`, [result.insertId]
   );
   return rows[0];
+}
+
+// Crea MULTIPLES direcciones para un cliente (por ejemplo física y mailing en una sola llamada)
+export async function createAddressesForClient(clientId: string, addresses: any[]) {
+  if (!Array.isArray(addresses) || addresses.length === 0) return [];
+  const results = [];
+  for (const address of addresses) {
+    const dir = await createAddressForClient(clientId, address);
+    results.push(dir);
+  }
+  return results;
 }
 
 // Actualiza una dirección existente de un cliente (por tipo)
@@ -71,5 +82,6 @@ export async function updateAddressForClient(clientId: string, address: any) {
 export default {
   getAddressesByClientId,
   createAddressForClient,
+  createAddressesForClient, // <- NUEVO, para lote!
   updateAddressForClient
 };
