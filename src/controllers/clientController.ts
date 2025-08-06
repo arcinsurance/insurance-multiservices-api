@@ -1,5 +1,3 @@
-// src/controllers/clientController.ts
-
 import { Request, Response } from 'express';
 import * as models from '../models';
 import { isValid, parse, format } from 'date-fns';
@@ -66,7 +64,6 @@ export const createClient = async (req: Request, res: Response) => {
       is_tobacco_user: isTobaccoUser ? 1 : 0,
       is_pregnant: isPregnant ? 1 : 0,
       assigned_agent_id: assignedAgentId || null,
-      // Agrega aquí cualquier otro campo necesario...
     };
 
     const newClient = await db.Client.createClientInDB(clientData);
@@ -79,11 +76,9 @@ export const createClient = async (req: Request, res: Response) => {
       await db.Address.createAddressForClient(newClient.id, { ...mailingAddress, type: 'mailing' });
     }
 
-    // Crear incomeSources
+    // Crear incomeSources (empleos/ingresos)
     if (incomeSources && Array.isArray(incomeSources)) {
-      for (const source of incomeSources) {
-        await db.IncomeSource.createIncomeSourceForClient(newClient.id, source);
-      }
+      await db.IncomeSource.updateIncomeSourceForClient(newClient.id, incomeSources);
     }
 
     // Crear immigrationDetails
@@ -157,7 +152,6 @@ export const updateClient = async (req: Request, res: Response) => {
       assigned_agent_id: updateFields.assignedAgentId !== undefined
         ? updateFields.assignedAgentId
         : client.assigned_agent_id || null,
-      // Agrega aquí cualquier otro campo relevante...
     });
 
     // Actualiza direcciones
@@ -168,11 +162,9 @@ export const updateClient = async (req: Request, res: Response) => {
       await db.Address.updateAddressForClient(clientId, { ...updateFields.mailingAddress, type: 'mailing' });
     }
 
-    // Actualiza incomeSources
+    // Actualiza incomeSources (empleos/ingresos)
     if (updateFields.incomeSources && Array.isArray(updateFields.incomeSources)) {
-      for (const source of updateFields.incomeSources) {
-        await db.IncomeSource.updateIncomeSourceForClient(clientId, source);
-      }
+      await db.IncomeSource.updateIncomeSourceForClient(clientId, updateFields.incomeSources);
     }
 
     // Actualiza immigrationDetails
@@ -204,6 +196,7 @@ export const updateClient = async (req: Request, res: Response) => {
 // ===================== TRAER TODOS LOS CLIENTES =====================
 export const getClients = async (_req: Request, res: Response) => {
   try {
+    // Si tienes una tabla de agentes y quieres el nombre, haz un JOIN aquí
     const clients = await db.Client.getClientsFromDB();
     res.json(
       clients.map((client: any) => ({
@@ -306,10 +299,14 @@ export const getClientAddresses = async (req: Request, res: Response) => {
 export const updateClientEmployment = async (req: Request, res: Response) => {
   try {
     const clientId = req.params.id;
-    const income = req.body;
-    const result = await db.IncomeSource.updateIncomeSourceForClient(clientId, income);
+    const incomeArray = req.body;
+    if (!Array.isArray(incomeArray)) {
+      return res.status(400).json({ error: 'Expected an array of income sources.' });
+    }
+    const result = await db.IncomeSource.updateIncomeSourceForClient(clientId, incomeArray);
     res.json({ message: 'Employment info updated', result });
   } catch (error) {
+    console.error('Error updating employment:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -339,4 +336,3 @@ export const updateClientAddresses = async (req: Request, res: Response) => {
 };
 
 // ... agrega aquí cualquier otro endpoint extra que uses en tu CRM
-
