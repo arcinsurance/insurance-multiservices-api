@@ -1,11 +1,10 @@
 // src/controllers/clientController.ts
 
 import { Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import * as models from '../models';
 import { isValid, parse, format } from 'date-fns';
 
-const db = models; // <<---- ESTA LÍNEA ES FUNDAMENTAL
+const db = models;
 
 // Helper para formato de fecha US
 function formatDate(dateString: string | Date): string {
@@ -24,8 +23,7 @@ function formatDate(dateString: string | Date): string {
 export const createClient = async (req: Request, res: Response) => {
   try {
     const {
-      firstName, lastName, middleName, lastName2, email, phone, dateOfBirth, gender,
-      assignedAgentId, preferredLanguage, isTobaccoUser, isPregnant,
+      firstName, lastName, email, phone, dateOfBirth,
       physicalAddress, mailingAddress, mailingAddressSameAsPhysical,
       incomeSources, immigrationDetails,
     } = req.body;
@@ -34,8 +32,9 @@ export const createClient = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Email único
-    const exists = await db.Client.findOne({ where: { email } });
+    // Buscar si existe el email (¡NO tenemos función directa!)
+    const allClients = await db.Client.getClientsFromDB();
+    const exists = allClients.find((c: any) => c.email === email);
     if (exists) {
       return res.status(409).json({ error: 'Email already exists' });
     }
@@ -49,54 +48,46 @@ export const createClient = async (req: Request, res: Response) => {
       dob = isValid(dateObj) ? format(dateObj, 'yyyy-MM-dd') : '';
     }
 
-    const newClient = await db.Client.create({
-      id: uuidv4(),
-      firstName,
-      lastName,
-      middleName: middleName || null,
-      lastName2: lastName2 || null,
+    // Crear cliente
+    const clientData = {
+      name: `${firstName} ${lastName}`,
       email,
       phone,
-      dateOfBirth: dob,
-      gender: gender || null,
-      assignedAgentId: assignedAgentId || null,
-      preferredLanguage: preferredLanguage || 'Spanish',
-      isTobaccoUser: !!isTobaccoUser,
-      isPregnant: !!isPregnant,
-      dateAdded: new Date(),
-    });
+      date_of_birth: dob
+    };
+    const newClient = await db.Client.createClientInDB(clientData);
 
-    // Direcciones (Address)
+    // Crear direcciones
     if (physicalAddress) {
-      await db.Address.create({ ...physicalAddress, clientId: newClient.id, type: 'physical' });
+      await db.Address.createAddressForClient(newClient.id, { ...physicalAddress, type: 'physical' });
     }
     if (mailingAddress && !mailingAddressSameAsPhysical) {
-      await db.Address.create({ ...mailingAddress, clientId: newClient.id, type: 'mailing' });
+      await db.Address.createAddressForClient(newClient.id, { ...mailingAddress, type: 'mailing' });
     }
 
-    // Income sources
+    // Crear incomeSources
     if (incomeSources && Array.isArray(incomeSources)) {
       for (const source of incomeSources) {
-        await db.IncomeSource.create({ ...source, clientId: newClient.id });
+        await db.IncomeSource.createIncomeSourceForClient(newClient.id, source);
       }
     }
 
-    // Immigration details
+    // Crear immigrationDetails
     if (immigrationDetails) {
-      await db.ImmigrationDetails.create({ ...immigrationDetails, clientId: newClient.id });
+      await db.ImmigrationDetails.createImmigrationDetailsForClient(newClient.id, immigrationDetails);
     }
 
-    // Trae todos los datos para el frontend
-    const fullClient = await db.Client.findOne({
-      where: { id: newClient.id },
-      include: [
-        { model: db.Address },
-        { model: db.IncomeSource },
-        { model: db.ImmigrationDetails },
-      ],
-    });
+    // Traer todo el cliente para el frontend (simulación, puedes ajustar)
+    const addresses = await db.Address.getAddressesByClientId(newClient.id);
+    const incomes = await db.IncomeSource.getIncomeSourcesByClientId(newClient.id);
+    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(newClient.id);
 
-    res.status(201).json(fullClient);
+    res.status(201).json({
+      ...newClient,
+      addresses,
+      incomes,
+      immigration
+    });
   } catch (error) {
     console.error('Error creating client:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -109,20 +100,22 @@ export const updateClient = async (req: Request, res: Response) => {
     const clientId = req.params.id || req.params.clientId;
     const updateFields = req.body;
 
-    const client = await db.Client.findByPk(clientId);
+    // Buscar cliente por ID
+    const client = await db.Client.getClientByIdFromDB(clientId);
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    // Si cambia email, valida que no exista en otro cliente
+    // Validar email único
     if (updateFields.email && updateFields.email !== client.email) {
-      const exists = await db.Client.findOne({ where: { email: updateFields.email } });
+      const allClients = await db.Client.getClientsFromDB();
+      const exists = allClients.find((c: any) => c.email === updateFields.email && c.id !== clientId);
       if (exists) {
         return res.status(409).json({ error: 'Email already exists' });
       }
     }
 
-    // Si cambia fecha, normalízala
+    // Normalizar fecha
     if (updateFields.dateOfBirth) {
       const dateObj = typeof updateFields.dateOfBirth === 'string'
         ? parse(updateFields.dateOfBirth, 'yyyy-MM-dd', new Date())
@@ -130,47 +123,46 @@ export const updateClient = async (req: Request, res: Response) => {
       updateFields.dateOfBirth = isValid(dateObj) ? format(dateObj, 'yyyy-MM-dd') : null;
     }
 
-    await client.update(updateFields);
+    await db.Client.updateClientInDB(clientId, {
+      name: `${updateFields.firstName || client.name.split(' ')[0]} ${updateFields.lastName || client.name.split(' ')[1] || ''}`,
+      email: updateFields.email || client.email,
+      phone: updateFields.phone || client.phone,
+      date_of_birth: updateFields.dateOfBirth || client.date_of_birth
+    });
 
-    // Actualiza direcciones, ingresos, legal si están presentes
+    // Actualiza direcciones
     if (updateFields.physicalAddress) {
-      await db.Address.update(updateFields.physicalAddress, {
-        where: { clientId, type: 'physical' }
-      });
+      await db.Address.updateAddressForClient(clientId, { ...updateFields.physicalAddress, type: 'physical' });
     }
     if (updateFields.mailingAddress) {
-      await db.Address.update(updateFields.mailingAddress, {
-        where: { clientId, type: 'mailing' }
-      });
+      await db.Address.updateAddressForClient(clientId, { ...updateFields.mailingAddress, type: 'mailing' });
     }
+
+    // Actualiza incomeSources
     if (updateFields.incomeSources && Array.isArray(updateFields.incomeSources)) {
-      await db.IncomeSource.destroy({ where: { clientId } }); // Borra anteriores y agrega nuevos
+      // Podrías borrar e insertar de nuevo, según lo necesites
       for (const source of updateFields.incomeSources) {
-        await db.IncomeSource.create({ ...source, clientId });
+        await db.IncomeSource.updateIncomeSourceForClient(clientId, source);
       }
     }
-    // Upsert manual para ImmigrationDetails
+
+    // Actualiza immigrationDetails
     if (updateFields.immigrationDetails) {
-      const [record, created] = await db.ImmigrationDetails.findOrCreate({
-        where: { clientId },
-        defaults: { ...updateFields.immigrationDetails, clientId }
-      });
-      if (!created) {
-        await record.update(updateFields.immigrationDetails);
-      }
+      await db.ImmigrationDetails.updateImmigrationDetailsForClient(clientId, updateFields.immigrationDetails);
     }
 
     // Trae el cliente actualizado
-    const updatedClient = await db.Client.findOne({
-      where: { id: clientId },
-      include: [
-        { model: db.Address },
-        { model: db.IncomeSource },
-        { model: db.ImmigrationDetails },
-      ],
-    });
+    const updatedClient = await db.Client.getClientByIdFromDB(clientId);
+    const addresses = await db.Address.getAddressesByClientId(clientId);
+    const incomes = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
+    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(clientId);
 
-    res.json(updatedClient);
+    res.json({
+      ...updatedClient,
+      addresses,
+      incomes,
+      immigration
+    });
   } catch (error) {
     console.error('Error updating client:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -180,22 +172,8 @@ export const updateClient = async (req: Request, res: Response) => {
 // ===================== TRAER TODOS LOS CLIENTES =====================
 export const getClients = async (_req: Request, res: Response) => {
   try {
-    const clients = await db.Client.findAll({
-      include: [
-        { model: db.Address },
-        { model: db.IncomeSource },
-        { model: db.ImmigrationDetails },
-      ],
-      order: [['dateAdded', 'DESC']],
-    });
-
-    res.json(
-      clients.map((c: any) => ({
-        ...c.toJSON(),
-        dateOfBirth: formatDate(c.dateOfBirth),
-        dateAdded: formatDate(c.dateAdded),
-      }))
-    );
+    const clients = await db.Client.getClientsFromDB();
+    res.json(clients);
   } catch (error) {
     console.error('Error fetching clients:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -206,19 +184,18 @@ export const getClients = async (_req: Request, res: Response) => {
 export const getClientById = async (req: Request, res: Response) => {
   try {
     const clientId = req.params.id || req.params.clientId;
-    const client = await db.Client.findOne({
-      where: { id: clientId },
-      include: [
-        { model: db.Address },
-        { model: db.IncomeSource },
-        { model: db.ImmigrationDetails },
-      ],
-    });
+    const client = await db.Client.getClientByIdFromDB(clientId);
     if (!client) return res.status(404).json({ error: 'Client not found' });
+
+    const addresses = await db.Address.getAddressesByClientId(clientId);
+    const incomes = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
+    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(clientId);
+
     res.json({
-      ...client.toJSON(),
-      dateOfBirth: formatDate(client.dateOfBirth),
-      dateAdded: formatDate(client.dateAdded),
+      ...client,
+      addresses,
+      incomes,
+      immigration
     });
   } catch (error) {
     console.error('Error fetching client:', error);
