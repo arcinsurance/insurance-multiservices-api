@@ -3,14 +3,14 @@ import { db } from '../config/db';
 
 // Trae direcciones de un cliente por su ID
 export async function getAddressesByClientId(clientId: string) {
-  const [rows]: [any[], any] = await db.query('SELECT * FROM client_addresses WHERE client_id = ?', [clientId]);
+  const [rows]: [any[], any] = await db.query('SELECT * FROM addresses WHERE client_id = ?', [clientId]);
   return rows;
 }
 
 // Crea una dirección para un cliente
 export async function createAddressForClient(clientId: string, address: any) {
   const [result]: [any, any] = await db.query(
-    `INSERT INTO client_addresses (client_id, line1, line2, city, state, zip_code, type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO addresses (client_id, line1, line2, city, state, zip_code, type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       clientId,
       address.line1,
@@ -27,7 +27,7 @@ export async function createAddressForClient(clientId: string, address: any) {
 // Actualiza una dirección existente de un cliente
 export async function updateAddressForClient(clientId: string, address: any) {
   const [result]: [any, any] = await db.query(
-    `UPDATE client_addresses SET line1=?, line2=?, city=?, state=?, zip_code=? WHERE client_id=? AND type=?`,
+    `UPDATE addresses SET line1=?, line2=?, city=?, state=?, zip_code=? WHERE client_id=? AND type=?`,
     [
       address.line1,
       address.line2,
