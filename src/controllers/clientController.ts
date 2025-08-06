@@ -1,8 +1,8 @@
-// clientController.ts
+// src/controllers/clientController.ts
+
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-// Asegúrate de importar tu modelo correctamente
-import db from '../models'; // ajusta según tu estructura
+import db from '../models'; // Cambia esto si tu import es diferente
 import { isValid, parse, format } from 'date-fns';
 
 // Helper para formato de fecha US
@@ -18,7 +18,7 @@ function formatDate(dateString: string | Date): string {
   }
 }
 
-// Crear un nuevo cliente
+// ===================== CREAR CLIENTE =====================
 export const createClient = async (req: Request, res: Response) => {
   try {
     const {
@@ -28,17 +28,16 @@ export const createClient = async (req: Request, res: Response) => {
       incomeSources, immigrationDetails,
     } = req.body;
 
-    // Validaciones mínimas
     if (!firstName || !lastName || !email || !phone) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    // Valida email único
+    // Email único
     const exists = await db.Client.findOne({ where: { email } });
     if (exists) {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
-    // Formatear fecha nacimiento
+    // Formatear fecha de nacimiento
     let dob = '';
     if (dateOfBirth) {
       const dateObj = typeof dateOfBirth === 'string'
@@ -47,7 +46,6 @@ export const createClient = async (req: Request, res: Response) => {
       dob = isValid(dateObj) ? format(dateObj, 'yyyy-MM-dd') : '';
     }
 
-    // Crear cliente
     const newClient = await db.Client.create({
       id: uuidv4(),
       firstName,
@@ -63,7 +61,6 @@ export const createClient = async (req: Request, res: Response) => {
       isTobaccoUser: !!isTobaccoUser,
       isPregnant: !!isPregnant,
       dateAdded: new Date(),
-      // Se pueden agregar más campos según modelo
     });
 
     // Direcciones (Address)
@@ -103,10 +100,10 @@ export const createClient = async (req: Request, res: Response) => {
   }
 };
 
-// Actualizar información del cliente
+// ===================== ACTUALIZAR CLIENTE =====================
 export const updateClient = async (req: Request, res: Response) => {
   try {
-    const { clientId } = req.params;
+    const clientId = req.params.id || req.params.clientId;
     const updateFields = req.body;
 
     const client = await db.Client.findByPk(clientId);
@@ -170,7 +167,7 @@ export const updateClient = async (req: Request, res: Response) => {
   }
 };
 
-// Traer todos los clientes (incluyendo sus datos)
+// ===================== TRAER TODOS LOS CLIENTES =====================
 export const getClients = async (_req: Request, res: Response) => {
   try {
     const clients = await db.Client.findAll({
@@ -195,10 +192,10 @@ export const getClients = async (_req: Request, res: Response) => {
   }
 };
 
-// Traer un cliente por ID
+// ===================== TRAER UN CLIENTE POR ID =====================
 export const getClientById = async (req: Request, res: Response) => {
   try {
-    const { clientId } = req.params;
+    const clientId = req.params.id || req.params.clientId;
     const client = await db.Client.findOne({
       where: { id: clientId },
       include: [
