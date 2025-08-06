@@ -250,3 +250,39 @@ export const getClientAddresses = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// ===================== PUT /api/clients/:id/employment =====================
+export const updateClientEmployment = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const income = req.body;
+    const result = await db.IncomeSource.updateIncomeSourceForClient(clientId, income);
+    res.json({ message: 'Employment info updated', result });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ===================== PUT /api/clients/:id/immigration =====================
+export const updateClientImmigration = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const immigration = req.body;
+    const result = await db.ImmigrationDetails.updateImmigrationDetailsForClient(clientId, immigration);
+    res.json({ message: 'Immigration info updated', result });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ===================== PUT /api/clients/:id/addresses =====================
+export const updateClientAddresses = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const address = req.body;
+    const result = await db.Address.updateAddressForClient(clientId, address);
+    res.json({ message: 'Address updated', result });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
