@@ -48,59 +48,11 @@ export async function deleteClientInDB(id: string) {
   return result;
 }
 
-// Actualiza empleo del cliente
-export async function updateClientEmploymentInDB(id: string, employmentData: any) {
-  const [result]: [any, any] = await db.query(
-    `UPDATE client_employment SET employer=?, position=?, annual_income=? WHERE client_id=?`,
-    [
-      employmentData.employer,
-      employmentData.position,
-      employmentData.annual_income,
-      id
-    ]
-  );
-  return result;
-}
-
-// Actualiza inmigración del cliente
-export async function updateClientImmigrationInDB(id: string, immigrationData: any) {
-  const [result]: [any, any] = await db.query(
-    `UPDATE client_immigration SET status=?, category=?, ssn=?, uscis_number=? WHERE client_id=?`,
-    [
-      immigrationData.status,
-      immigrationData.category,
-      immigrationData.ssn,
-      immigrationData.uscis_number,
-      id
-    ]
-  );
-  return result;
-}
-
-// Actualiza direcciones del cliente
-export async function updateClientAddressesInDB(id: string, addressData: any) {
-  const [result]: [any, any] = await db.query(
-    `UPDATE client_addresses SET line1=?, line2=?, city=?, state=?, zip_code=? WHERE client_id=?`,
-    [
-      addressData.line1,
-      addressData.line2,
-      addressData.city,
-      addressData.state,
-      addressData.zip_code,
-      id
-    ]
-  );
-  return result;
-}
-
-// ====> Export default para compatibilidad con imports modernos
+// Export default para compatibilidad con imports modernos
 export default {
   getClientsFromDB,
   getClientByIdFromDB,
   createClientInDB,
   updateClientInDB,
-  deleteClientInDB,
-  updateClientEmploymentInDB,
-  updateClientImmigrationInDB,
-  updateClientAddressesInDB
+  deleteClientInDB
 };
