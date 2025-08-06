@@ -21,9 +21,13 @@ export async function getImmigrationDetailsByClientId(clientId: string) {
 
 // Crea detalles migratorios para un cliente
 export async function createImmigrationDetailsForClient(clientId: string, immigration: any) {
+  if (!immigration || typeof immigration !== 'object') {
+    throw new Error('Invalid immigration details');
+  }
   const data = normalizeImmigration(immigration);
   const [result]: [any, any] = await db.query(
-    `INSERT INTO immigration_details (client_id, status, category, ssn, uscis_number) VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO immigration_details (client_id, status, category, ssn, uscis_number)
+     VALUES (?, ?, ?, ?, ?)`,
     [
       clientId,
       data.status,
@@ -41,6 +45,9 @@ export async function createImmigrationDetailsForClient(clientId: string, immigr
 
 // Actualiza detalles migratorios de un cliente
 export async function updateImmigrationDetailsForClient(clientId: string, immigration: any) {
+  if (!immigration || typeof immigration !== 'object') {
+    throw new Error('Invalid immigration details');
+  }
   const data = normalizeImmigration(immigration);
   const [result]: [any, any] = await db.query(
     `UPDATE immigration_details SET status=?, category=?, ssn=?, uscis_number=? WHERE client_id=?`,
