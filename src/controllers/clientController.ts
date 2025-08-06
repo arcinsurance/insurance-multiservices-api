@@ -201,7 +201,6 @@ export const updateClient = async (req: Request, res: Response) => {
 // ===================== TRAER TODOS LOS CLIENTES =====================
 export const getClients = async (_req: Request, res: Response) => {
   try {
-    // Si tienes una tabla de agentes y quieres el nombre, haz un JOIN aquí
     const clients = await db.Client.getClientsFromDB();
     res.json(
       clients.map((client: any) => ({
@@ -243,4 +242,99 @@ export const getClientById = async (req: Request, res: Response) => {
   }
 };
 
-// ... Los endpoints GET/PUT para info secciones y dirección/empleo/migración pueden quedar igual
+// ===================== ENDPOINTS REST POR SECCIÓN =====================
+
+// GET /api/clients/:id/basic-info
+export const getClientBasicInfo = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const client = await db.Client.getClientByIdFromDB(clientId);
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+
+    const { id, name, email, phone, date_of_birth, date_added, assigned_agent_id } = client;
+    res.json({
+      id,
+      name,
+      email,
+      phone,
+      date_of_birth: formatDate(date_of_birth),
+      date_added: formatDate(date_added),
+      assigned_agent_id: assigned_agent_id || null,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// GET /api/clients/:id/employment
+export const getClientEmployment = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const income = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
+    res.json(income || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// GET /api/clients/:id/immigration
+export const getClientImmigration = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(clientId);
+    res.json(immigration || {});
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// GET /api/clients/:id/addresses
+export const getClientAddresses = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const addresses = await db.Address.getAddressesByClientId(clientId);
+    res.json(addresses || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// PUT /api/clients/:id/employment
+export const updateClientEmployment = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const incomeArray = req.body;
+    if (!Array.isArray(incomeArray)) {
+      return res.status(400).json({ error: 'Expected an array of income sources.' });
+    }
+    const result = await db.IncomeSource.updateIncomeSourceForClient(clientId, incomeArray);
+    res.json({ message: 'Employment info updated', result });
+  } catch (error) {
+    console.error('Error updating employment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// PUT /api/clients/:id/immigration
+export const updateClientImmigration = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const immigration = req.body;
+    const result = await db.ImmigrationDetails.updateImmigrationDetailsForClient(clientId, immigration);
+    res.json({ message: 'Immigration info updated', result });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// PUT /api/clients/:id/addresses
+export const updateClientAddresses = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const address = req.body;
+    const result = await db.Address.updateAddressForClient(clientId, address);
+    res.json({ message: 'Address updated', result });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
