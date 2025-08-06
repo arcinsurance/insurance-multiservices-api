@@ -32,7 +32,7 @@ export const createClient = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Buscar si existe el email (¡NO tenemos función directa!)
+    // Buscar si existe el email
     const allClients = await db.Client.getClientsFromDB();
     const exists = allClients.find((c: any) => c.email === email);
     if (exists) {
@@ -77,7 +77,7 @@ export const createClient = async (req: Request, res: Response) => {
       await db.ImmigrationDetails.createImmigrationDetailsForClient(newClient.id, immigrationDetails);
     }
 
-    // Traer todo el cliente para el frontend (simulación, puedes ajustar)
+    // Traer todo el cliente para el frontend
     const addresses = await db.Address.getAddressesByClientId(newClient.id);
     const incomes = await db.IncomeSource.getIncomeSourcesByClientId(newClient.id);
     const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(newClient.id);
@@ -140,7 +140,6 @@ export const updateClient = async (req: Request, res: Response) => {
 
     // Actualiza incomeSources
     if (updateFields.incomeSources && Array.isArray(updateFields.incomeSources)) {
-      // Podrías borrar e insertar de nuevo, según lo necesites
       for (const source of updateFields.incomeSources) {
         await db.IncomeSource.updateIncomeSourceForClient(clientId, source);
       }
@@ -199,6 +198,55 @@ export const getClientById = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error fetching client:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ===================== NUEVOS ENDPOINTS REST POR SECCIÓN =====================
+
+// GET /api/clients/:id/basic-info
+export const getClientBasicInfo = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const client = await db.Client.getClientByIdFromDB(clientId);
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+
+    const { id, name, email, phone, date_of_birth, date_added } = client;
+    res.json({ id, name, email, phone, date_of_birth, date_added });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// GET /api/clients/:id/employment
+export const getClientEmployment = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const income = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
+    res.json(income);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// GET /api/clients/:id/immigration
+export const getClientImmigration = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const immigration = await db.ImmigrationDetails.getImmigrationDetailsByClientId(clientId);
+    res.json(immigration || {});
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// GET /api/clients/:id/addresses
+export const getClientAddresses = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.params.id;
+    const addresses = await db.Address.getAddressesByClientId(clientId);
+    res.json(addresses);
+  } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
