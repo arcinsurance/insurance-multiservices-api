@@ -22,8 +22,7 @@
     "axios": "^1.6.0",
     "express-rate-limit": "^7.1.5"
     "dependencies": {
-    "date-fns": "^3.6.0",   // <-- agrega esto
-    // ...tus otras dependencias
+    "date-fns": "^3.6.0",    
 }
 
   },
