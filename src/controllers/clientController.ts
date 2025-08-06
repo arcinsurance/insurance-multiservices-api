@@ -318,4 +318,3 @@ export const updateClientAddresses = async (req: Request, res: Response) => {
 };
 
 // Puedes agregar aquí cualquier otro endpoint extra que uses en tu CRM.
-
