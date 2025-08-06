@@ -19,68 +19,44 @@ export async function getIncomeSourcesByClientId(clientId: string) {
   return rows;
 }
 
-// Crea un ingreso para un cliente
-export async function createIncomeSourceForClient(clientId: string, income: any) {
-  const data = normalizeIncome(income);
-  const [result]: [any, any] = await db.query(
-    `INSERT INTO income_sources (client_id, employer, position, annual_income)
-     VALUES (?, ?, ?, ?)`,
-    [
-      clientId,
-      data.employer,
-      data.position,
-      data.annual_income
-    ]
-  );
-  // Devuelve el ingreso recién creado
-  const [rows]: [any[], any] = await db.query(
-    `SELECT * FROM income_sources WHERE id = ?`, [result.insertId]
-  );
-  return rows[0];
+// Crea **MÚLTIPLES** ingresos para un cliente (array de ingresos)
+export async function createIncomeSourcesForClient(clientId: string, incomes: any[]) {
+  if (!Array.isArray(incomes) || incomes.length === 0) return [];
+  const results = [];
+  for (const income of incomes) {
+    const data = normalizeIncome(income);
+    const [result]: [any, any] = await db.query(
+      `INSERT INTO income_sources (client_id, employer, position, annual_income)
+       VALUES (?, ?, ?, ?)`,
+      [
+        clientId,
+        data.employer,
+        data.position,
+        data.annual_income
+      ]
+    );
+    // Trae el ingreso recién creado y lo agrega al array
+    const [rows]: [any[], any] = await db.query(
+      `SELECT * FROM income_sources WHERE id = ?`, [result.insertId]
+    );
+    if (rows.length > 0) results.push(rows[0]);
+  }
+  return results;
 }
 
-// Actualiza ingresos de un cliente (NOTA: idealmente debería ser por ID, no solo por clientId)
-export async function updateIncomeSourceForClient(clientId: string, income: any) {
-  const data = normalizeIncome(income);
-
-  // Si income tiene un ID, actualiza ese; si no, actualiza el primero que encuentre
-  let updateResult;
-  if (income.id) {
-    [updateResult] = await db.query(
-      `UPDATE income_sources SET employer=?, position=?, annual_income=? WHERE client_id=? AND id=?`,
-      [
-        data.employer,
-        data.position,
-        data.annual_income,
-        clientId,
-        income.id
-      ]
-    );
-    // Devuelve el ingreso actualizado
-    const [rows]: [any[], any] = await db.query(
-      `SELECT * FROM income_sources WHERE id = ?`, [income.id]
-    );
-    return rows[0];
-  } else {
-    [updateResult] = await db.query(
-      `UPDATE income_sources SET employer=?, position=?, annual_income=? WHERE client_id=? LIMIT 1`,
-      [
-        data.employer,
-        data.position,
-        data.annual_income,
-        clientId
-      ]
-    );
-    // Devuelve todos los ingresos del cliente para refrescar el frontend
-    const [rows]: [any[], any] = await db.query(
-      `SELECT * FROM income_sources WHERE client_id=?`, [clientId]
-    );
-    return rows;
+// Actualiza TODOS los ingresos de un cliente: borra los existentes y agrega los nuevos
+export async function updateIncomeSourceForClient(clientId: string, incomes: any[]) {
+  if (!Array.isArray(incomes)) {
+    throw new Error('Expected income array');
   }
+  // Borra todas las fuentes anteriores
+  await db.query('DELETE FROM income_sources WHERE client_id = ?', [clientId]);
+  // Inserta las nuevas
+  return await createIncomeSourcesForClient(clientId, incomes);
 }
 
 export default {
   getIncomeSourcesByClientId,
-  createIncomeSourceForClient,
-  updateIncomeSourceForClient
+  createIncomeSourcesForClient,
+  updateIncomeSourceForClient,
 };
