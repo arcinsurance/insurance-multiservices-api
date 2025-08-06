@@ -90,9 +90,9 @@ export const createClient = async (req: Request, res: Response) => {
       assigned_agent_id: newClient.assigned_agent_id || assignedAgentId || null,
       date_of_birth: formatDate(newClient.date_of_birth),
       date_added: formatDate(newClient.date_added),
-      addresses,
-      incomes,
-      immigration
+      addresses: addresses || [],
+      incomes: incomes || [],
+      immigration: immigration || {},
     });
   } catch (error) {
     console.error('Error creating client:', error);
@@ -170,9 +170,9 @@ export const updateClient = async (req: Request, res: Response) => {
       assigned_agent_id: updatedClient.assigned_agent_id,
       date_of_birth: formatDate(updatedClient.date_of_birth),
       date_added: formatDate(updatedClient.date_added),
-      addresses,
-      incomes,
-      immigration
+      addresses: addresses || [],
+      incomes: incomes || [],
+      immigration: immigration || {},
     });
   } catch (error) {
     console.error('Error updating client:', error);
@@ -214,9 +214,9 @@ export const getClientById = async (req: Request, res: Response) => {
       assigned_agent_id: client.assigned_agent_id || null,
       date_of_birth: formatDate(client.date_of_birth),
       date_added: formatDate(client.date_added),
-      addresses,
-      incomes,
-      immigration
+      addresses: addresses || [],
+      incomes: incomes || [],
+      immigration: immigration || {},
     });
   } catch (error) {
     console.error('Error fetching client:', error);
@@ -253,7 +253,7 @@ export const getClientEmployment = async (req: Request, res: Response) => {
   try {
     const clientId = req.params.id;
     const income = await db.IncomeSource.getIncomeSourcesByClientId(clientId);
-    res.json(income);
+    res.json(income || []);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -275,7 +275,7 @@ export const getClientAddresses = async (req: Request, res: Response) => {
   try {
     const clientId = req.params.id;
     const addresses = await db.Address.getAddressesByClientId(clientId);
-    res.json(addresses);
+    res.json(addresses || []);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -317,4 +317,5 @@ export const updateClientAddresses = async (req: Request, res: Response) => {
   }
 };
 
-// Puedes agregar aquí cualquier otro endpoint extra que uses en tu CRM.
+// Agrega aquí cualquier otro endpoint extra que uses en tu CRM.
+
