@@ -1,4 +1,3 @@
-// src/models/client.ts
 import { db } from '../config/db';
 
 // Trae todos los clientes ordenados por fecha de ingreso
@@ -13,29 +12,31 @@ export async function getClientByIdFromDB(id: string) {
   return rows[0] || null;
 }
 
-// Crea un nuevo cliente
+// Crea un nuevo cliente (ahora guarda assigned_agent_id)
 export async function createClientInDB(clientData: any) {
   const [result]: [any, any] = await db.query(
-    `INSERT INTO clients (name, email, phone, date_of_birth, date_added) VALUES (?, ?, ?, ?, NOW())`,
+    `INSERT INTO clients (name, email, phone, date_of_birth, assigned_agent_id, date_added) VALUES (?, ?, ?, ?, ?, NOW())`,
     [
       clientData.name,
       clientData.email,
       clientData.phone,
       clientData.date_of_birth,
+      clientData.assigned_agent_id || null, // <---- IMPORTANTE
     ]
   );
   return { ...clientData, id: (result as any).insertId, date_added: new Date() };
 }
 
-// Actualiza datos de un cliente
+// Actualiza datos de un cliente (también assigned_agent_id)
 export async function updateClientInDB(id: string, clientData: any) {
   const [result]: [any, any] = await db.query(
-    `UPDATE clients SET name=?, email=?, phone=?, date_of_birth=? WHERE id=?`,
+    `UPDATE clients SET name=?, email=?, phone=?, date_of_birth=?, assigned_agent_id=? WHERE id=?`,
     [
       clientData.name,
       clientData.email,
       clientData.phone,
       clientData.date_of_birth,
+      clientData.assigned_agent_id || null, // <---- IMPORTANTE
       id
     ]
   );
