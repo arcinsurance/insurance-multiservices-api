@@ -7,7 +7,10 @@ import {
   getClientBasicInfo,
   getClientEmployment,
   getClientImmigration,
-  getClientAddresses
+  getClientAddresses,
+  updateClientEmployment,
+  updateClientImmigration,
+  updateClientAddresses
 } from '../controllers/clientController';
 
 import { createPolicy } from '../controllers/policyController';
@@ -20,11 +23,16 @@ router.get('/:id', getClientById);
 router.post('/', createClient);
 router.put('/:id', updateClient);
 
-// Endpoints REST por sección (para compatibilidad con frontend existente)
+// Endpoints REST por sección (frontend espera estos)
 router.get('/:id/basic-info', getClientBasicInfo);
 router.get('/:id/employment', getClientEmployment);
 router.get('/:id/immigration', getClientImmigration);
 router.get('/:id/addresses', getClientAddresses);
+
+// Endpoints para actualizar secciones específicas (deja el handler aunque solo sea un placeholder)
+router.put('/:id/employment', updateClientEmployment);
+router.put('/:id/immigration', updateClientImmigration);
+router.put('/:id/addresses', updateClientAddresses);
 
 // Agregar póliza a un cliente
 router.post('/:clientId/policies', createPolicy);
