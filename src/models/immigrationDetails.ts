@@ -1,14 +1,15 @@
+// src/models/immigrationDetails.ts
 import { db } from '../config/db';
 
 // Trae detalles migratorios de un cliente por su ID
 export async function getImmigrationDetailsByClientId(clientId: string) {
-  const [rows] = await db.query('SELECT * FROM client_immigration WHERE client_id = ?', [clientId]);
+  const [rows]: [any[], any] = await db.query('SELECT * FROM client_immigration WHERE client_id = ?', [clientId]);
   return rows[0] || null;
 }
 
 // Crea detalles migratorios para un cliente
 export async function createImmigrationDetailsForClient(clientId: string, immigration: any) {
-  const [result] = await db.query(
+  const [result]: [any, any] = await db.query(
     `INSERT INTO client_immigration (client_id, status, category, ssn, uscis_number) VALUES (?, ?, ?, ?, ?)`,
     [
       clientId,
@@ -23,7 +24,7 @@ export async function createImmigrationDetailsForClient(clientId: string, immigr
 
 // Actualiza detalles migratorios de un cliente
 export async function updateImmigrationDetailsForClient(clientId: string, immigration: any) {
-  const [result] = await db.query(
+  const [result]: [any, any] = await db.query(
     `UPDATE client_immigration SET status=?, category=?, ssn=?, uscis_number=? WHERE client_id=?`,
     [
       immigration.status,
@@ -35,3 +36,10 @@ export async function updateImmigrationDetailsForClient(clientId: string, immigr
   );
   return result;
 }
+
+// ====> Export default para compatibilidad con imports modernos
+export default {
+  getImmigrationDetailsByClientId,
+  createImmigrationDetailsForClient,
+  updateImmigrationDetailsForClient
+};
