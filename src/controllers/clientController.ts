@@ -1,9 +1,9 @@
-// src/controllers/clientController.ts
-
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import * as db from '../models';
+import * as models from '../models';
 import { isValid, parse, format } from 'date-fns';
+
+const db = models; // <--- IMPORTANTE
 
 // Helper para formato de fecha US
 function formatDate(dateString: string | Date): string {
@@ -31,6 +31,7 @@ export const createClient = async (req: Request, res: Response) => {
     if (!firstName || !lastName || !email || !phone) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
     // Email único
     const exists = await db.Client.findOne({ where: { email } });
     if (exists) {
@@ -146,8 +147,15 @@ export const updateClient = async (req: Request, res: Response) => {
         await db.IncomeSource.create({ ...source, clientId });
       }
     }
+    // IMMIGRATION: Upsert manual
     if (updateFields.immigrationDetails) {
-      await db.ImmigrationDetails.update(updateFields.immigrationDetails, { where: { clientId } });
+      const [record, created] = await db.ImmigrationDetails.findOrCreate({
+        where: { clientId },
+        defaults: { ...updateFields.immigrationDetails, clientId }
+      });
+      if (!created) {
+        await record.update(updateFields.immigrationDetails);
+      }
     }
 
     // Trae el cliente actualizado
