@@ -1,5 +1,5 @@
 // src/models/index.ts
 
-export * from './client';
+import * as db from '../models';
 // Si agregas más modelos, agrégalos aquí.
 // Ejemplo: export * from './incomeSource';
