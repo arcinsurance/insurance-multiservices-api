@@ -24,7 +24,8 @@ function formatDate(dateString: string | Date): string {
 export const createClient = async (req: Request, res: Response) => {
   try {
     const {
-      firstName, lastName, email, phone, dateOfBirth,
+      firstName, middleName, lastName, lastName2, email, phone, dateOfBirth,
+      gender, preferredLanguage, isTobaccoUser, isPregnant,
       assignedAgentId,
       physicalAddress, mailingAddress, mailingAddressSameAsPhysical,
       incomeSources, immigrationDetails,
@@ -50,14 +51,24 @@ export const createClient = async (req: Request, res: Response) => {
       dob = isValid(dateObj) ? format(dateObj, 'yyyy-MM-dd') : '';
     }
 
-    // Crear cliente (incluye assigned_agent_id)
+    // Mapeo completo de datos
     const clientData = {
+      first_name: firstName,
+      middle_name: middleName || null,
+      last_name: lastName,
+      last_name_2: lastName2 || null,
       name: `${firstName} ${lastName}`,
       email,
       phone,
       date_of_birth: dob,
+      gender: gender || null,
+      preferred_language: preferredLanguage || null,
+      is_tobacco_user: isTobaccoUser ? 1 : 0,
+      is_pregnant: isPregnant ? 1 : 0,
       assigned_agent_id: assignedAgentId || null,
+      // Agrega aquí cualquier otro campo necesario...
     };
+
     const newClient = await db.Client.createClientInDB(clientData);
 
     // Crear direcciones
@@ -129,14 +140,24 @@ export const updateClient = async (req: Request, res: Response) => {
       updateFields.dateOfBirth = isValid(dateObj) ? format(dateObj, 'yyyy-MM-dd') : null;
     }
 
+    // Mapeo completo de datos (mantén los valores anteriores si no llegan del frontend)
     await db.Client.updateClientInDB(clientId, {
-      name: `${updateFields.firstName || client.name.split(' ')[0]} ${updateFields.lastName || client.name.split(' ')[1] || ''}`,
+      first_name: updateFields.firstName || client.first_name,
+      middle_name: updateFields.middleName || client.middle_name,
+      last_name: updateFields.lastName || client.last_name,
+      last_name_2: updateFields.lastName2 || client.last_name_2,
+      name: `${updateFields.firstName || client.first_name} ${updateFields.lastName || client.last_name}`,
       email: updateFields.email || client.email,
       phone: updateFields.phone || client.phone,
       date_of_birth: updateFields.dateOfBirth || client.date_of_birth,
+      gender: updateFields.gender || client.gender,
+      preferred_language: updateFields.preferredLanguage || client.preferred_language,
+      is_tobacco_user: updateFields.isTobaccoUser !== undefined ? updateFields.isTobaccoUser : client.is_tobacco_user,
+      is_pregnant: updateFields.isPregnant !== undefined ? updateFields.isPregnant : client.is_pregnant,
       assigned_agent_id: updateFields.assignedAgentId !== undefined
         ? updateFields.assignedAgentId
         : client.assigned_agent_id || null,
+      // Agrega aquí cualquier otro campo relevante...
     });
 
     // Actualiza direcciones
@@ -317,5 +338,5 @@ export const updateClientAddresses = async (req: Request, res: Response) => {
   }
 };
 
-// Agrega aquí cualquier otro endpoint extra que uses en tu CRM.
+// ... agrega aquí cualquier otro endpoint extra que uses en tu CRM
 
