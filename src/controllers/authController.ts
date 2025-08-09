@@ -43,7 +43,7 @@ export const requestOtp = async (req: Request, res: Response) => {
       [email, otpCode, expiresAt]
     );
 
-    // Enviar correo con OTP usando sendEmail
+    // Enviar correo con OTP
     await sendEmail(
       email,
       'Tu código de autenticación (OTP)',
@@ -57,7 +57,7 @@ export const requestOtp = async (req: Request, res: Response) => {
   }
 };
 
-// Admin credentials should not be hard-coded. Use environment variables instead.
+// Admin credentials via variables de entorno (opcional)
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_SECRET_CODE = process.env.ADMIN_SECRET_CODE;
 
@@ -67,9 +67,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
   if (!email || !code) return res.status(400).json({ message: 'Email y código son requeridos' });
 
   try {
-    // Validar código fijo para admin solo si está configurado en el entorno
+    // Atajo opcional para admin solo si está configurado en el entorno
     if (ADMIN_EMAIL && ADMIN_SECRET_CODE && email === ADMIN_EMAIL && code === ADMIN_SECRET_CODE) {
-      // Obtener info de usuario sin consultar OTP
       const [users] = await db.execute<RowDataPacket[]>(
         'SELECT id, full_name, email, role, is_active FROM agents WHERE email = ? AND is_active = 1',
         [email]
@@ -78,20 +77,15 @@ export const verifyOtp = async (req: Request, res: Response) => {
         return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
       }
       const user = users[0] as {
-        id: string;
-        full_name: string;
-        email: string;
-        role: string;
-        is_active: number;
+        id: string; full_name: string; email: string; role: string; is_active: number;
       };
 
-      // Generar token JWT; no usar un valor por defecto inseguro
       const secret = process.env.JWT_SECRET;
-      if (!secret) {
-        throw new Error('JWT_SECRET environment variable is not defined');
-      }
+      if (!secret) throw new Error('JWT_SECRET environment variable is not defined');
+
+      // 🔴 IMPORTANTE: firmar con userId y role (lo espera verifyToken y el frontend)
       const token = jwt.sign(
-        { userId: user.id },
+        { userId: user.id, role: user.role },
         secret,
         { expiresIn: '8h' }
       );
@@ -108,7 +102,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
       });
     }
 
-    // Validación normal para otros usuarios (OTP en base de datos)
+    // Validación normal con OTP en base
     const [rows] = await db.execute<RowDataPacket[]>(
       `SELECT id FROM otp_codes 
        WHERE email = ? AND code = ? AND used = 0 AND expires_at > NOW()`,
@@ -131,20 +125,15 @@ export const verifyOtp = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Usuario no encontrado o inactivo' });
     }
     const user = users[0] as {
-      id: string;
-      full_name: string;
-      email: string;
-      role: string;
-      is_active: number;
+      id: string; full_name: string; email: string; role: string; is_active: number;
     };
 
-    // Generar token JWT; no usar valor por defecto inseguro
     const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET environment variable is not defined');
-    }
+    if (!secret) throw new Error('JWT_SECRET environment variable is not defined');
+
+    // 🔴 IMPORTANTE: firmar con userId y role
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, role: user.role },
       secret,
       { expiresIn: '8h' }
     );
@@ -168,13 +157,12 @@ export const verifyOtp = async (req: Request, res: Response) => {
 // GET /api/auth/me
 export const getCurrentUser = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!req.user?.id) {
+    // 🔴 Tu verifyToken suele poner req.user.userId (no req.user.id)
+    const userId = req.user?.userId;
+    if (!userId) {
       return res.status(401).json({ message: 'Usuario no autenticado' });
     }
 
-    const userId = req.user.id;
-
-    // Consulta para obtener los datos básicos del usuario
     const [rows] = await db.execute<RowDataPacket[]>(
       'SELECT id, full_name, email, role, is_active FROM agents WHERE id = ? AND is_active = 1',
       [userId]
@@ -185,11 +173,7 @@ export const getCurrentUser = async (req: AuthenticatedRequest, res: Response) =
     }
 
     const user = rows[0] as {
-      id: string;
-      full_name: string;
-      email: string;
-      role: string;
-      is_active: number;
+      id: string; full_name: string; email: string; role: string; is_active: number;
     };
 
     res.json({
