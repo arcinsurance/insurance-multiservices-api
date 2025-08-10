@@ -16,3 +16,21 @@ export async function sendEmail(to: string, subject: string, text: string, html?
     ...(html ? { html } : {}),
   });
 }
+
+// Enviar email de bienvenida al agente
+export async function sendAgentWelcomeEmail(to: string, name: string, tempPassword: string) {
+  const subject = 'Bienvenido a Insurance Multiservices';
+  const text = `Hola ${name}, tu usuario ha sido creado. Tu contraseña temporal es: ${tempPassword}`;
+  await sendEmail(to, subject, text);
+}
+
+// Enviar email de sistema (notificaciones generales)
+export async function sendSystemMessageEmail(to: string, subject: string, text: string) {
+  await sendEmail(to, subject, text);
+}
+
+// Enviar email a cliente (notificaciones personalizadas)
+export async function sendClientMessageEmail(to: string, subject: string, text: string, senderName?: string) {
+  const fullText = senderName ? `${text}\n\nAtentamente,\n${senderName}` : text;
+  await sendEmail(to, subject, fullText);
+}
