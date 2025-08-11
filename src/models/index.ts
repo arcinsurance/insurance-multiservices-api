@@ -1,13 +1,14 @@
+// src/models/index.ts
 import Client from './client';
 import Address from './address';
 import IncomeSource from './incomeSource';
 import ImmigrationDetails from './immigrationDetails';
-
-// Si después agregas más modelos, los importas aquí igual que estos
+import Agent from './agent'; // 👈 Nuevo
 
 export {
   Client,
   Address,
   IncomeSource,
   ImmigrationDetails,
+  Agent, // 👈 Exportar aquí
 };
