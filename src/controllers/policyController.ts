@@ -1,4 +1,4 @@
-// src/controllers/policiesController.ts
+// src/controllers/policyController.ts
 import { Request, Response } from 'express';
 import { parse, isValid, format } from 'date-fns';
 import * as Policy from '../models/policy';
@@ -25,7 +25,6 @@ function fmtOut(d?: any): string | null {
 // ===== Endpoints =====
 
 // GET /api/policies/client/:clientId
-// (o si usas /api/clients/:clientId/policies en tus rutas, igual toma req.params.clientId)
 export async function getPoliciesByClient(req: Request, res: Response) {
   try {
     const { clientId } = req.params;
@@ -44,8 +43,7 @@ export async function getPoliciesByClient(req: Request, res: Response) {
   }
 }
 
-// POST /api/policies/client/:clientId   (upsert)
-// (si prefieres /api/clients/:clientId/policies también funciona: solo necesita clientId en params)
+// POST /api/policies/client/:clientId  (upsert)
 export async function upsertPolicy(req: Request, res: Response) {
   try {
     const { clientId } = req.params;
@@ -104,7 +102,7 @@ export async function updatePolicy(req: Request, res: Response) {
 
     const b = req.body || {};
     const updates: Policy.PolicyUpdate = {
-      clientId: b.clientId, // opcional
+      clientId: b.clientId,
       category: b.category,
       ffmMarketplaceUsed: b.ffmMarketplaceUsed,
       npnMarketplaceUsed: b.npnMarketplaceUsed,
@@ -159,3 +157,6 @@ export async function deletePolicy(req: Request, res: Response) {
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+// 🔁 Compatibilidad con código anterior
+export const createPolicy = upsertPolicy;
