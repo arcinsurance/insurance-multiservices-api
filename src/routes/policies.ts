@@ -5,7 +5,8 @@ import {
   upsertPolicy,
   updatePolicy,
   deletePolicy,
-} from '../controllers/policiesController';
+  createPolicy, // alias por compatibilidad
+} from '../controllers/policyController';
 
 const router = Router();
 
@@ -15,8 +16,8 @@ router.get('/client/:clientId', getPoliciesByClient);
 // Crear/actualizar (upsert) póliza para un cliente
 router.post('/client/:clientId', upsertPolicy);
 
-// 🔁 Compatibilidad con tu ruta anterior: POST /api/policies/:clientId
-router.post('/:clientId', upsertPolicy);
+// Compatibilidad con tu ruta anterior: POST /api/policies/:clientId
+router.post('/:clientId', createPolicy);
 
 // Actualizar una póliza por id
 router.put('/:policyId', updatePolicy);
