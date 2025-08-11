@@ -1,3 +1,4 @@
+// src/index.ts
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -23,7 +24,6 @@ import settingsLogRoutes from './routes/settingsLog';
 import leadRoutes from './routes/leadRoutes';
 import agencyProfileRoutes from './routes/agencyProfileRoutes';
 
-
 import { db } from './config/db';
 
 dotenv.config();
@@ -37,15 +37,16 @@ app.use(express.urlencoded({ extended: true }));
 /* ───────────── CORS ───────────── */
 const allowedOrigins = [
   'https://crm.insurancemultiservices.com', // producción
-  'http://localhost:5173',                  // desarrollo local
-  'http://localhost:5174',                  // desarrollo local (puerto alternativo)
-  'http://localhost:3000',                  // servidor build local
-
-
+  'http://localhost:5173',                  // dev local
+  'http://localhost:5174',                  // dev local alterno
+  'http://localhost:3000',                  // build local
+  // Agrega aquí tu dominio de frontend en Render si aplica, por ej.:
+  // 'https://tu-frontend.onrender.com',
 ];
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
+    // Render health check y muchos clientes no envían origin -> permitir
     if (!origin || allowedOrigins.includes(origin)) callback(null, true);
     else callback(new Error('Not allowed by CORS'));
   },
@@ -54,7 +55,12 @@ const corsOptions: cors.CorsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+// Preflight
+app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
+
+/* ───────────── Healthcheck para Render ───────────── */
+app.get('/healthz', (_req, res) => res.status(200).send('ok'));
 
 /* ───────────── Rutas API ───────────── */
 app.get('/', (_req, res) => {
@@ -94,7 +100,8 @@ app.get('/api/messages/test', (_req, res) => {
 });
 
 /* ───────────── Puerto ───────────── */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = Number(process.env.PORT || 10000);
+// IMPORTANTE: host 0.0.0.0 para Render
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
