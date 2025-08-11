@@ -1,106 +1,98 @@
 // src/controllers/policiesController.ts
 import { Request, Response } from 'express';
-import { db } from '../config/db';
 import { parse, isValid, format } from 'date-fns';
+import * as Policy from '../models/policy';
 
-// Helpers
-function toTinyInt(v: any): 0 | 1 | null {
-  if (v === null || v === undefined || v === '') return null;
-  return (v === true || v === 1 || v === '1' || v === 'true') ? 1 : 0;
-}
-
-function toSQLDate(s: any): string | null {
-  if (!s) return null;
-  if (typeof s !== 'string') return null;
-  // intenta yyyy-MM-dd
-  let d = parse(s, 'yyyy-MM-dd', new Date());
-  if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  // intenta MM/dd/yyyy
-  d = parse(s, 'MM/dd/yyyy', new Date());
-  if (isValid(d)) return format(d, 'yyyy-MM-dd');
+// ===== Helpers =====
+function toSQLDate(input?: any): string | null {
+  if (!input) return null;
+  const s = String(input).trim();
+  // Acepta 'YYYY-MM-DD'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Intenta 'MM/DD/YYYY'
+  try {
+    const d = parse(s, 'MM/dd/yyyy', new Date());
+    if (isValid(d)) return format(d, 'yyyy-MM-dd');
+  } catch {}
   return null;
 }
 
-// POST /api/clients/:clientId/policies
-export async function createPolicy(req: Request, res: Response) {
-  try {
-    const { clientId } = req.params;
-    const {
-      category,
-      carrier = null,
-      planName = null,
-      effectiveDate = null,
-      ffmMarketplaceUsed = null,
-      npnMarketplaceUsed = null,
-      agentUsedOwnNpn = null,
-      typeOfSale = null,
-      marketplaceId = null,
-      memberId = null,
-      cmsPlanId = null,
-      metalLevel = null,
-      policyTotalCost = null,
-      taxCreditSubsidy = null,
-      endDate = null,
-      status = 'ACTIVE',
-      premium = null,
-      market_id = null, // si piensas usarlo
-    } = req.body;
-
-    if (!clientId) return res.status(400).json({ message: 'clientId is required (route param)' });
-    if (!category) return res.status(400).json({ message: 'category is required' });
-
-    const eff = toSQLDate(effectiveDate);
-    const end = toSQLDate(endDate);
-    const ownNpn = toTinyInt(agentUsedOwnNpn);
-
-    // id es VARCHAR(36): usa UUID() generado por MySQL
-    const sql = `
-      INSERT INTO policies (
-        id, clientId, category, carrier, planName, effectiveDate,
-        ffmMarketplaceUsed, npnMarketplaceUsed, agentUsedOwnNpn, typeOfSale,
-        marketplaceId, memberId, cmsPlanId, metalLevel,
-        policyTotalCost, taxCreditSubsidy, endDate, status, premium, market_id
-      ) VALUES (
-        UUID(), ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?
-      )
-    `;
-
-    const params = [
-      clientId, category, carrier, planName, eff,
-      ffmMarketplaceUsed, npnMarketplaceUsed, ownNpn, typeOfSale,
-      marketplaceId, memberId, cmsPlanId, metalLevel,
-      policyTotalCost, taxCreditSubsidy, end, status, premium, market_id
-    ];
-
-    await db.execute(sql, params);
-
-    // devolver la creada (por clientId + últimos datos)
-    const [rows]: [any[], any] = await db.query(
-      `SELECT * FROM policies WHERE clientId = ? ORDER BY effectiveDate DESC, id DESC LIMIT 1`,
-      [clientId]
-    );
-    return res.status(201).json(rows[0] || { ok: true });
-  } catch (err) {
-    console.error('createPolicy error', err);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
+function fmtOut(d?: any): string | null {
+  if (!d) return null;
+  try { return format(new Date(d), 'MM/dd/yyyy'); } catch { return null; }
 }
 
-// GET /api/clients/:clientId/policies
+// ===== Endpoints =====
+
+// GET /api/policies/client/:clientId
+// (o si usas /api/clients/:clientId/policies en tus rutas, igual toma req.params.clientId)
 export async function getPoliciesByClient(req: Request, res: Response) {
   try {
     const { clientId } = req.params;
-    const [rows]: [any[], any] = await db.query(
-      `SELECT * FROM policies WHERE clientId = ? ORDER BY effectiveDate DESC, id DESC`,
-      [clientId]
-    );
-    res.json(rows);
+    if (!clientId) return res.status(400).json({ error: 'clientId is required' });
+
+    const rows = await Policy.getPoliciesByClientId(clientId);
+    const data = rows.map((p: any) => ({
+      ...p,
+      effectiveDate: fmtOut(p.effectiveDate),
+      endDate: fmtOut(p.endDate),
+    }));
+    res.json(data);
   } catch (err) {
     console.error('getPoliciesByClient error', err);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// POST /api/policies/client/:clientId   (upsert)
+// (si prefieres /api/clients/:clientId/policies también funciona: solo necesita clientId en params)
+export async function upsertPolicy(req: Request, res: Response) {
+  try {
+    const { clientId } = req.params;
+    if (!clientId) return res.status(400).json({ error: 'clientId is required (route param)' });
+
+    const b = req.body || {};
+    const payload: Policy.PolicyInsert = {
+      clientId,
+      category: b.category ?? 'HEALTH',
+      ffmMarketplaceUsed: b.ffmMarketplaceUsed ?? null,
+      npnMarketplaceUsed: b.npnMarketplaceUsed ?? null,
+      agentUsedOwnNpn: b.agentUsedOwnNpn ?? null,
+      typeOfSale: b.typeOfSale ?? null,
+      effectiveDate: toSQLDate(b.effectiveDate),
+      endDate: toSQLDate(b.endDate),
+      marketplaceId: b.marketplaceId ?? null,
+      memberId: b.memberId ?? null,
+      cmsPlanId: b.cmsPlanId ?? null,
+      carrier: b.carrier ?? null,
+      planName: b.planName ?? null,
+      metalLevel: b.metalLevel ?? null,
+      policyTotalCost: b.policyTotalCost != null ? Number(b.policyTotalCost) : null,
+      taxCreditSubsidy: b.taxCreditSubsidy != null ? Number(b.taxCreditSubsidy) : null,
+      premium: b.premium != null ? Number(b.premium) : null,
+      status: (b.status ?? 'ACTIVE') as any,
+      market_id: b.market_id ?? b.marketId ?? null,
+    };
+
+    const saved = await Policy.upsertPolicyForClient(payload);
+    if (saved) {
+      return res.status(201).json({
+        ...saved,
+        effectiveDate: fmtOut(saved.effectiveDate),
+        endDate: fmtOut(saved.endDate),
+      });
+    }
+    res.status(201).json({ ok: true });
+  } catch (err: any) {
+    const msg = String(err?.message || '');
+    if (msg.includes('Duplicate') || msg.includes('UNIQUE')) {
+      return res.status(409).json({
+        error:
+          'Duplicate policy for this client (market_id) o (planName + effectiveDate) cuando market_id es NULL.',
+      });
+    }
+    console.error('upsertPolicy error', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -108,61 +100,49 @@ export async function getPoliciesByClient(req: Request, res: Response) {
 export async function updatePolicy(req: Request, res: Response) {
   try {
     const { policyId } = req.params;
-    const body = req.body || {};
+    if (!policyId) return res.status(400).json({ error: 'policyId is required' });
 
-    // Normaliza campos a los nombres reales de la tabla
-    const allowed: Record<string, any> = {};
-    const map: Record<string, string> = {
-      clientId: 'clientId',
-      category: 'category',
-      carrier: 'carrier',
-      planName: 'planName',
-      effectiveDate: 'effectiveDate',
-      ffmMarketplaceUsed: 'ffmMarketplaceUsed',
-      npnMarketplaceUsed: 'npnMarketplaceUsed',
-      agentUsedOwnNpn: 'agentUsedOwnNpn',
-      typeOfSale: 'typeOfSale',
-      marketplaceId: 'marketplaceId',
-      memberId: 'memberId',
-      cmsPlanId: 'cmsPlanId',
-      metalLevel: 'metalLevel',
-      policyTotalCost: 'policyTotalCost',
-      taxCreditSubsidy: 'taxCreditSubsidy',
-      endDate: 'endDate',
-      status: 'status',
-      premium: 'premium',
-      market_id: 'market_id',
+    const b = req.body || {};
+    const updates: Policy.PolicyUpdate = {
+      clientId: b.clientId, // opcional
+      category: b.category,
+      ffmMarketplaceUsed: b.ffmMarketplaceUsed,
+      npnMarketplaceUsed: b.npnMarketplaceUsed,
+      agentUsedOwnNpn: b.agentUsedOwnNpn,
+      typeOfSale: b.typeOfSale,
+      effectiveDate: toSQLDate(b.effectiveDate),
+      endDate: toSQLDate(b.endDate),
+      marketplaceId: b.marketplaceId,
+      memberId: b.memberId,
+      cmsPlanId: b.cmsPlanId,
+      carrier: b.carrier,
+      planName: b.planName,
+      metalLevel: b.metalLevel,
+      policyTotalCost: b.policyTotalCost != null ? Number(b.policyTotalCost) : undefined,
+      taxCreditSubsidy: b.taxCreditSubsidy != null ? Number(b.taxCreditSubsidy) : undefined,
+      premium: b.premium != null ? Number(b.premium) : undefined,
+      status: b.status,
+      market_id: b.market_id ?? b.marketId,
     };
 
-    for (const k of Object.keys(map)) {
-      if (k in body) {
-        let v = body[k];
-        if (k === 'agentUsedOwnNpn') v = toTinyInt(v);
-        if (k === 'effectiveDate' || k === 'endDate') v = toSQLDate(v);
-        allowed[map[k]] = v ?? null;
-      }
+    const saved = await Policy.updatePolicyById(policyId, updates);
+    if (!saved) return res.status(404).json({ error: 'Policy not found' });
+
+    res.json({
+      ...saved,
+      effectiveDate: fmtOut(saved.effectiveDate),
+      endDate: fmtOut(saved.endDate),
+    });
+  } catch (err: any) {
+    const msg = String(err?.message || '');
+    if (msg.includes('Duplicate') || msg.includes('UNIQUE')) {
+      return res.status(409).json({
+        error:
+          'Duplicate policy for this client (market_id) o (planName + effectiveDate) cuando market_id es NULL.',
+      });
     }
-
-    if (Object.keys(allowed).length === 0) {
-      const [cur]: [any[], any] = await db.query(`SELECT * FROM policies WHERE id = ? LIMIT 1`, [policyId]);
-      return res.json(cur[0] || null);
-    }
-
-    const sets: string[] = [];
-    const vals: any[] = [];
-    for (const [col, val] of Object.entries(allowed)) {
-      sets.push(`${col} = ?`);
-      vals.push(val);
-    }
-    vals.push(policyId);
-
-    await db.execute(`UPDATE policies SET ${sets.join(', ')} WHERE id = ?`, vals);
-
-    const [rows]: [any[], any] = await db.query(`SELECT * FROM policies WHERE id = ? LIMIT 1`, [policyId]);
-    res.json(rows[0] || null);
-  } catch (err) {
     console.error('updatePolicy error', err);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -170,10 +150,12 @@ export async function updatePolicy(req: Request, res: Response) {
 export async function deletePolicy(req: Request, res: Response) {
   try {
     const { policyId } = req.params;
-    await db.execute(`DELETE FROM policies WHERE id = ?`, [policyId]);
+    if (!policyId) return res.status(400).json({ error: 'policyId is required' });
+
+    await Policy.deletePolicyById(policyId);
     res.json({ ok: true });
   } catch (err) {
     console.error('deletePolicy error', err);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
