@@ -9,7 +9,7 @@ import agentRoutes from './routes/agents';
 import authRoutes from './routes/auth';
 import changePasswordRoute from './routes/changePassword';
 import productCategoryRoutes from './routes/productCategories';
-import policyRoutes from './routes/policies';
+import policyRoutes from './routes/policies'; // ver nota de montaje más abajo
 import documentRoutes from './routes/documents';
 import messageRoutes from './routes/messages';
 import signedDocumentsRoutes from './routes/signedDocuments';
@@ -24,8 +24,6 @@ import settingsLogRoutes from './routes/settingsLog';
 import leadRoutes from './routes/leadRoutes';
 import agencyProfileRoutes from './routes/agencyProfileRoutes';
 
-import { db } from './config/db';
-
 dotenv.config();
 
 const app = express();
@@ -38,24 +36,25 @@ app.use(express.urlencoded({ extended: true }));
 const allowedOrigins = [
   'https://crm.insurancemultiservices.com', // producción
   'http://localhost:5173',                  // dev local
-  'http://localhost:5174',                  // dev local alterno
+  'http://localhost:5174',                  // dev alterno
   'http://localhost:3000',                  // build local
-  // Agrega aquí tu dominio de frontend en Render si aplica, por ej.:
+  // agrega aquí tu dominio de frontend en Render si aplica:
   // 'https://tu-frontend.onrender.com',
+  // o usa una var de entorno FRONTEND_ORIGIN si prefieres
 ];
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Render health check y muchos clientes no envían origin -> permitir
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error('Not allowed by CORS'));
+    // Muchos clientes/healthchecks no envían Origin -> permitir
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Preflight
+// Preflight antes de rutas
 app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
 
@@ -76,7 +75,21 @@ app.use('/api/agents', agentRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/change-password', changePasswordRoute);
 app.use('/api/product-categories', productCategoryRoutes);
-app.use('/api/policies', policyRoutes);
+
+// ⬇⬇ ELIGE UNA OPCIÓN PARA policies ⬇⬇
+
+// Opción A: si DENTRO de routes/policies.ts usas rutas como
+// router.post('/clients/:clientId/policies', ...)
+// router.get('/clients/:clientId/policies', ...)
+// entonces monta el router en /api:
+app.use('/api', policyRoutes);
+
+// Opción B: si DENTRO de routes/policies.ts usas rutas “planas” como
+// router.post('/', ...)
+// router.get('/', ...)
+// entonces comenta la línea de arriba y usa esta en su lugar:
+// app.use('/api/policies', policyRoutes);
+
 app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/signed-documents', signedDocumentsRoutes);
@@ -85,9 +98,7 @@ app.use('/api/document-templates', documentTemplatesRoutes);
 app.use('/api/agency-licenses', agencyLicensesRoutes);
 app.use('/api/carriers', carriersRoutes);
 app.use('/api/chat-messages', chatMessagesRoutes);
-// Chat routes for DataContext (messages, history, send)
 app.use('/api/chat', chatRoutes);
-// Users routes for DataContext
 app.use('/api/users', usersRoutes);
 app.use('/api/commission-rates', commissionRatesRoutes);
 app.use('/api/settings-log', settingsLogRoutes);
