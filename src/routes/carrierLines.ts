@@ -15,7 +15,43 @@ type CarrierLine = {
 
 const router = Router();
 
-// Crea la tabla si no existe (cómodo para Render / primeros despliegues)
+/* ───────────────────────────────
+   Estados permitidos (50 + DC)
+   Si quieres territorios, agrégalos aquí y en DB (tabla states si usas FK).
+─────────────────────────────── */
+const US_STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA',
+  'ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK',
+  'OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'
+] as const;
+
+const STATE_MAP: Record<string, string> = {
+  GE: 'GA',
+  IO: 'IA',
+  SO: 'SC',
+  WE: 'WV',
+  TE: 'TX', // <-- cambia a 'TN' si tu fuente es Tennessee
+  NO: 'NC', // <-- cambia a 'ND' si era North Dakota
+  VI: 'VA', // <-- si realmente era US Virgin Islands, agrega 'VI' a US_STATES y a tu DB
+};
+
+function normalizeState(raw?: string): string {
+  const s = String(raw ?? '').trim().toUpperCase().slice(0, 2);
+  const mapped = STATE_MAP[s] ?? s;
+  return mapped;
+}
+
+function isValidState(code: string): boolean {
+  return US_STATES.includes(code as (typeof US_STATES)[number]);
+}
+
+function normalizeStatus(raw?: string): 'active' | 'inactive' {
+  return raw === 'inactive' ? 'inactive' : 'active';
+}
+
+/* ───────────────────────────────
+   Crea la tabla si no existe (cómodo para Render / primeros despliegues)
+─────────────────────────────── */
 async function ensureTable() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS carrier_lines (
@@ -39,7 +75,7 @@ ensureTable().catch((e) => {
    GET /api/carrier-lines
    Filtros: ?lob=ACA&state=FL&carrier=Ambetter&q=amb&status=active
    Paginación: ?page=1&perPage=50
-   Orden: ?orderBy=carrier|lob|state&orderDir=asc|desc
+   Orden: ?orderBy=carrier|lob|state|status&orderDir=asc|desc
 ─────────────────────────────── */
 router.get('/', async (req, res) => {
   try {
@@ -60,22 +96,27 @@ router.get('/', async (req, res) => {
 
     if (lob) {
       where.push('lob = :lob');
-      params.lob = lob;
+      params.lob = String(lob).trim();
     }
     if (state) {
+      const st = normalizeState(state);
+      if (!isValidState(st)) {
+        return res.status(400).json({ message: `Estado inválido: ${state}` });
+      }
       where.push('state = :state');
-      params.state = String(state).toUpperCase().slice(0, 2);
+      params.state = st;
     }
     if (carrier) {
       where.push('carrier = :carrier');
-      params.carrier = carrier;
+      params.carrier = String(carrier).trim();
     }
     if (status) {
+      const st = normalizeStatus(status);
       where.push('status = :status');
-      params.status = status === 'inactive' ? 'inactive' : 'active';
+      params.status = st;
     }
     if (q) {
-      where.push(`(carrier LIKE :q OR state LIKE :q)`);
+      where.push(`(carrier LIKE :q OR state LIKE :q OR lob LIKE :q)`);
       params.q = `%${q}%`;
     }
 
@@ -94,7 +135,7 @@ router.get('/', async (req, res) => {
       `SELECT COUNT(*) AS total FROM carrier_lines ${whereSQL}`,
       params
     );
-    const total = Number(countRows?.[0]?.total || 0);
+    const total = Number((countRows?.[0] as any)?.total || 0);
 
     // items
     const [rows] = await db.execute<RowDataPacket[]>(
@@ -122,7 +163,7 @@ router.get('/', async (req, res) => {
 
 /* ───────────────────────────────
    GET /api/carrier-lines/meta
-   Devuelve listas únicas de LOBs, estados y carriers
+   Listas únicas de LOBs, estados y carriers
 ─────────────────────────────── */
 router.get('/meta', async (_req, res) => {
   try {
@@ -156,11 +197,14 @@ router.post('/', async (req, res) => {
     const normalized = {
       lob: String(lob).trim(),
       carrier: String(carrier).trim(),
-      state: String(state).trim().toUpperCase().slice(0, 2),
-      status: (status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
+      state: normalizeState(state),
+      status: normalizeStatus(status),
     };
 
-    // upsert “manual” con unique (lob,carrier,state)
+    if (!isValidState(normalized.state)) {
+      return res.status(400).json({ message: `Estado inválido: ${state}` });
+    }
+
     const [result] = await db.execute<ResultSetHeader>(
       `
       INSERT INTO carrier_lines (lob, carrier, state, status)
@@ -172,7 +216,6 @@ router.post('/', async (req, res) => {
       normalized
     );
 
-    // Si fue insert nuevo, insertId; si fue update, trae el id existente
     let id = result.insertId;
     if (!id) {
       const [row] = await db.execute<RowDataPacket[]>(
@@ -205,15 +248,18 @@ router.put('/:id', async (req, res) => {
 
     const { lob, carrier, state, status } = req.body as Partial<CarrierLine>;
 
-    // Construir SET dinámico
     const sets: string[] = [];
     const params: Record<string, any> = { id };
 
     if (lob !== undefined) { sets.push('lob = :lob'); params.lob = String(lob).trim(); }
     if (carrier !== undefined) { sets.push('carrier = :carrier'); params.carrier = String(carrier).trim(); }
-    if (state !== undefined) { sets.push('state = :state'); params.state = String(state).trim().toUpperCase().slice(0, 2); }
+    if (state !== undefined) {
+      const st = normalizeState(state);
+      if (!isValidState(st)) return res.status(400).json({ message: `Estado inválido: ${state}` });
+      sets.push('state = :state'); params.state = st;
+    }
     if (status !== undefined) {
-      const st = status === 'inactive' ? 'inactive' : 'active';
+      const st = normalizeStatus(status);
       sets.push('status = :status'); params.status = st;
     }
 
@@ -236,6 +282,63 @@ router.put('/:id', async (req, res) => {
   } catch (err: any) {
     console.error('PUT /carrier-lines/:id error:', err);
     res.status(500).json({ message: 'Error updating carrier line', error: err?.message || String(err) });
+  }
+});
+
+/* ───────────────────────────────
+   PATCH /api/carrier-lines/:id/toggle-status
+─────────────────────────────── */
+router.patch('/:id/toggle-status', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    await db.execute<ResultSetHeader>(
+      `UPDATE carrier_lines
+       SET status = IF(status='active','inactive','active'),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = :id`,
+      { id }
+    );
+
+    const [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT id, lob, carrier, state, status, created_at, updated_at FROM carrier_lines WHERE id = :id`,
+      { id }
+    );
+
+    if (!rows || rows.length === 0) return res.status(404).json({ message: 'No encontrado' });
+    res.json(rows[0]);
+  } catch (err: any) {
+    console.error('PATCH /carrier-lines/:id/toggle-status error:', err);
+    res.status(500).json({ message: 'Error toggling status', error: err?.message || String(err) });
+  }
+});
+
+/* ───────────────────────────────
+   PATCH /api/carrier-lines/:id/status
+   body: { status: 'active' | 'inactive' }
+─────────────────────────────── */
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
+
+    const st = normalizeStatus((req.body || {}).status);
+    await db.execute<ResultSetHeader>(
+      `UPDATE carrier_lines SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id`,
+      { id, status: st }
+    );
+
+    const [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT id, lob, carrier, state, status, created_at, updated_at FROM carrier_lines WHERE id = :id`,
+      { id }
+    );
+
+    if (!rows || rows.length === 0) return res.status(404).json({ message: 'No encontrado' });
+    res.json(rows[0]);
+  } catch (err: any) {
+    console.error('PATCH /carrier-lines/:id/status error:', err);
+    res.status(500).json({ message: 'Error updating status', error: err?.message || String(err) });
   }
 });
 
