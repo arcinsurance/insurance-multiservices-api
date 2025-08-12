@@ -1,164 +1,262 @@
 // src/routes/carrierLines.ts
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
+import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { db } from '../config/db';
+
+type CarrierLine = {
+  id: number;
+  lob: string;
+  carrier: string;
+  state: string;   // 2-letter code
+  status: 'active' | 'inactive';
+  created_at?: string;
+  updated_at?: string;
+};
 
 const router = Router();
 
-/**
- * GET /api/carrier-lines
- * Filtros opcionales:
- *  - lob: 'ACA' | 'Medicare' | 'Life' | 'Supplementary'
- *  - state: 'FL', 'TX', ...
- *  - carrier: exacto
- *  - q: búsqueda parcial (carrier/state)
- *  - active: '1' | '0'
- *  - page, pageSize
- */
-router.get('/', async (req: Request, res: Response) => {
+// Crea la tabla si no existe (cómodo para Render / primeros despliegues)
+async function ensureTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS carrier_lines (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      lob VARCHAR(32) NOT NULL,
+      carrier VARCHAR(128) NOT NULL,
+      state CHAR(2) NOT NULL,
+      status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY unique_lob_carrier_state (lob, carrier, state)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+}
+ensureTable().catch((e) => {
+  console.error('❌ carrier_lines ensureTable error:', e?.message || e);
+});
+
+/* ───────────────────────────────
+   GET /api/carrier-lines
+   Filtros: ?lob=ACA&state=FL&carrier=Ambetter&q=amb&status=active
+   Paginación: ?page=1&perPage=50
+   Orden: ?orderBy=carrier|lob|state&orderDir=asc|desc
+─────────────────────────────── */
+router.get('/', async (req, res) => {
   try {
     const {
       lob,
       state,
       carrier,
       q,
-      active,
+      status,
       page = '1',
-      pageSize = '500',
+      perPage = '100',
+      orderBy = 'lob',
+      orderDir = 'asc',
     } = req.query as Record<string, string>;
 
     const where: string[] = [];
-    const params: any = {};
+    const params: Record<string, any> = {};
 
-    if (lob) { where.push('lob = :lob'); params.lob = lob; }
-    if (state) { where.push('state = :state'); params.state = String(state).toUpperCase().slice(0, 2); }
-    if (carrier) { where.push('carrier = :carrier'); params.carrier = carrier; }
-    if (active === '0' || active === '1') { where.push('active = :active'); params.active = Number(active); }
+    if (lob) {
+      where.push('lob = :lob');
+      params.lob = lob;
+    }
+    if (state) {
+      where.push('state = :state');
+      params.state = String(state).toUpperCase().slice(0, 2);
+    }
+    if (carrier) {
+      where.push('carrier = :carrier');
+      params.carrier = carrier;
+    }
+    if (status) {
+      where.push('status = :status');
+      params.status = status === 'inactive' ? 'inactive' : 'active';
+    }
     if (q) {
-      where.push('(carrier LIKE :q OR state LIKE :q)');
+      where.push(`(carrier LIKE :q OR state LIKE :q)`);
       params.q = `%${q}%`;
     }
 
     const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const limit = Math.min(Math.max(parseInt(pageSize, 10) || 50, 1), 2000);
-    const offset = Math.max(((parseInt(page, 10) || 1) - 1) * limit, 0);
 
-    const [rows] = await db.query(
-      `SELECT id, lob, carrier, state, active, created_at, updated_at
-       FROM carrier_lines
-       ${whereSQL}
-       ORDER BY lob, carrier, state
-       LIMIT :limit OFFSET :offset`,
-      { ...params, limit, offset }
+    const allowedOrderBy = new Set(['lob', 'carrier', 'state', 'status']);
+    const ob = allowedOrderBy.has(orderBy) ? orderBy : 'lob';
+    const od = String(orderDir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
+    const pageNum = Math.max(1, parseInt(page || '1', 10));
+    const per = Math.min(500, Math.max(1, parseInt(perPage || '100', 10)));
+    const offset = (pageNum - 1) * per;
+
+    // total
+    const [countRows] = await db.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM carrier_lines ${whereSQL}`,
+      params
     );
+    const total = Number(countRows?.[0]?.total || 0);
 
-    res.json(rows);
-  } catch (err) {
-    console.error('GET /carrier-lines error', err);
-    res.status(500).json({ message: 'Error fetching carrier lines' });
-  }
-});
-
-/**
- * GET /api/carrier-lines/meta
- * Devuelve listas distintas para poblar filtros (y opcionalmente filtra carriers por LOB).
- */
-router.get('/meta', async (req: Request, res: Response) => {
-  try {
-    const { lob } = req.query as Record<string, string>;
-
-    const [lobRows] = await db.query(`SELECT DISTINCT lob FROM carrier_lines ORDER BY lob`);
-    const [stateRows] = await db.query(`SELECT DISTINCT state FROM carrier_lines ORDER BY state`);
-
-    let carrierSQL = `SELECT DISTINCT carrier FROM carrier_lines`;
-    const params: any = {};
-    if (lob) {
-      carrierSQL += ` WHERE lob = :lob`;
-      params.lob = lob;
-    }
-    carrierSQL += ` ORDER BY carrier`;
-    const [carrierRows] = await db.query(carrierSQL, params);
+    // items
+    const [rows] = await db.execute<RowDataPacket[]>(
+      `
+      SELECT id, lob, carrier, state, status, created_at, updated_at
+      FROM carrier_lines
+      ${whereSQL}
+      ORDER BY ${ob} ${od}, carrier ASC, state ASC
+      LIMIT :limit OFFSET :offset
+      `,
+      { ...params, limit: per, offset }
+    );
 
     res.json({
-      lobs: (lobRows as any[]).map(r => r.lob),
-      states: (stateRows as any[]).map(r => r.state),
-      carriers: (carrierRows as any[]).map(r => r.carrier),
+      items: rows as CarrierLine[],
+      total,
+      page: pageNum,
+      perPage: per,
     });
-  } catch (err) {
-    console.error('GET /carrier-lines/meta error', err);
-    res.status(500).json({ message: 'Error fetching meta' });
+  } catch (err: any) {
+    console.error('GET /carrier-lines error:', err);
+    res.status(500).json({ message: 'Error fetching carrier lines', error: err?.message || String(err) });
   }
 });
 
-/** POST /api/carrier-lines (opcional, para crear desde UI) */
-router.post('/', async (req: Request, res: Response) => {
+/* ───────────────────────────────
+   GET /api/carrier-lines/meta
+   Devuelve listas únicas de LOBs, estados y carriers
+─────────────────────────────── */
+router.get('/meta', async (_req, res) => {
   try {
-    const { lob, carrier, state, active = 1 } = req.body || {};
+    const [lobs] = await db.execute<RowDataPacket[]>(`SELECT DISTINCT lob FROM carrier_lines ORDER BY lob ASC`);
+    const [states] = await db.execute<RowDataPacket[]>(`SELECT DISTINCT state FROM carrier_lines ORDER BY state ASC`);
+    const [carriers] = await db.execute<RowDataPacket[]>(`SELECT DISTINCT carrier FROM carrier_lines ORDER BY carrier ASC`);
+
+    res.json({
+      lobs: (lobs || []).map((r) => r.lob as string),
+      states: (states || []).map((r) => r.state as string),
+      carriers: (carriers || []).map((r) => r.carrier as string),
+    });
+  } catch (err: any) {
+    console.error('GET /carrier-lines/meta error:', err);
+    res.status(500).json({ message: 'Error fetching carrier-lines meta', error: err?.message || String(err) });
+  }
+});
+
+/* ───────────────────────────────
+   POST /api/carrier-lines
+   body: { lob, carrier, state, status? }
+─────────────────────────────── */
+router.post('/', async (req, res) => {
+  try {
+    const { lob, carrier, state, status } = req.body as Partial<CarrierLine>;
 
     if (!lob || !carrier || !state) {
-      return res.status(400).json({ message: 'lob, carrier y state son requeridos' });
+      return res.status(400).json({ message: 'lob, carrier y state son obligatorios' });
     }
 
-    await db.query(
-      `INSERT INTO carrier_lines (lob, carrier, state, active)
-       VALUES (:lob, :carrier, :state, :active)
-       ON DUPLICATE KEY UPDATE
-         active = VALUES(active),
-         updated_at = CURRENT_TIMESTAMP`,
-      { lob, carrier, state: String(state).toUpperCase().slice(0, 2), active: Number(active) ? 1 : 0 }
+    const normalized = {
+      lob: String(lob).trim(),
+      carrier: String(carrier).trim(),
+      state: String(state).trim().toUpperCase().slice(0, 2),
+      status: (status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
+    };
+
+    // upsert “manual” con unique (lob,carrier,state)
+    const [result] = await db.execute<ResultSetHeader>(
+      `
+      INSERT INTO carrier_lines (lob, carrier, state, status)
+      VALUES (:lob, :carrier, :state, :status)
+      ON DUPLICATE KEY UPDATE
+        status = VALUES(status),
+        updated_at = CURRENT_TIMESTAMP
+      `,
+      normalized
     );
 
-    res.status(201).json({ message: 'Saved' });
-  } catch (err) {
-    console.error('POST /carrier-lines error', err);
-    res.status(500).json({ message: 'Error saving carrier line' });
+    // Si fue insert nuevo, insertId; si fue update, trae el id existente
+    let id = result.insertId;
+    if (!id) {
+      const [row] = await db.execute<RowDataPacket[]>(
+        `SELECT id FROM carrier_lines WHERE lob=:lob AND carrier=:carrier AND state=:state`,
+        normalized
+      );
+      id = Number(row?.[0]?.id || 0);
+    }
+
+    const [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT id, lob, carrier, state, status, created_at, updated_at FROM carrier_lines WHERE id = :id`,
+      { id }
+    );
+
+    res.status(201).json(rows?.[0] || { id, ...normalized });
+  } catch (err: any) {
+    console.error('POST /carrier-lines error:', err);
+    res.status(500).json({ message: 'Error creating carrier line', error: err?.message || String(err) });
   }
 });
 
-/** PUT /api/carrier-lines/:id (opcional) */
-router.put('/:id', async (req: Request, res: Response) => {
+/* ───────────────────────────────
+   PUT /api/carrier-lines/:id
+   body: { lob?, carrier?, state?, status? }
+─────────────────────────────── */
+router.put('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { lob, carrier, state, active } = req.body || {};
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
 
-    const [result] = await db.query(
-      `UPDATE carrier_lines
-       SET
-         lob     = COALESCE(:lob, lob),
-         carrier = COALESCE(:carrier, carrier),
-         state   = COALESCE(:state, state),
-         active  = COALESCE(:active, active),
-         updated_at = CURRENT_TIMESTAMP
-       WHERE id = :id`,
-      {
-        id: Number(id),
-        lob: lob ?? null,
-        carrier: carrier ?? null,
-        state: state ? String(state).toUpperCase().slice(0, 2) : null,
-        active: active === undefined ? null : (Number(active) ? 1 : 0),
-      }
+    const { lob, carrier, state, status } = req.body as Partial<CarrierLine>;
+
+    // Construir SET dinámico
+    const sets: string[] = [];
+    const params: Record<string, any> = { id };
+
+    if (lob !== undefined) { sets.push('lob = :lob'); params.lob = String(lob).trim(); }
+    if (carrier !== undefined) { sets.push('carrier = :carrier'); params.carrier = String(carrier).trim(); }
+    if (state !== undefined) { sets.push('state = :state'); params.state = String(state).trim().toUpperCase().slice(0, 2); }
+    if (status !== undefined) {
+      const st = status === 'inactive' ? 'inactive' : 'active';
+      sets.push('status = :status'); params.status = st;
+    }
+
+    if (sets.length === 0) {
+      return res.status(400).json({ message: 'No hay campos para actualizar' });
+    }
+
+    await db.execute<ResultSetHeader>(
+      `UPDATE carrier_lines SET ${sets.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = :id`,
+      params
     );
 
-    // @ts-ignore
-    if (result.affectedRows === 0) return res.status(404).json({ message: 'Not found' });
-    res.json({ message: 'Updated' });
-  } catch (err) {
-    console.error('PUT /carrier-lines/:id error', err);
-    res.status(500).json({ message: 'Error updating carrier line' });
+    const [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT id, lob, carrier, state, status, created_at, updated_at FROM carrier_lines WHERE id = :id`,
+      { id }
+    );
+
+    if (!rows || rows.length === 0) return res.status(404).json({ message: 'No encontrado' });
+    res.json(rows[0]);
+  } catch (err: any) {
+    console.error('PUT /carrier-lines/:id error:', err);
+    res.status(500).json({ message: 'Error updating carrier line', error: err?.message || String(err) });
   }
 });
 
-/** DELETE /api/carrier-lines/:id (opcional) */
-router.delete('/:id', async (req: Request, res: Response) => {
+/* ───────────────────────────────
+   DELETE /api/carrier-lines/:id
+─────────────────────────────── */
+router.delete('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const [result] = await db.query(`DELETE FROM carrier_lines WHERE id = :id`, { id: Number(id) });
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) return res.status(400).json({ message: 'ID inválido' });
 
-    // @ts-ignore
-    if (result.affectedRows === 0) return res.status(404).json({ message: 'Not found' });
-    res.json({ message: 'Deleted' });
-  } catch (err) {
-    console.error('DELETE /carrier-lines/:id error', err);
-    res.status(500).json({ message: 'Error deleting carrier line' });
+    const [result] = await db.execute<ResultSetHeader>(
+      `DELETE FROM carrier_lines WHERE id = :id`,
+      { id }
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'No encontrado' });
+
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error('DELETE /carrier-lines/:id error:', err);
+    res.status(500).json({ message: 'Error deleting carrier line', error: err?.message || String(err) });
   }
 });
 
