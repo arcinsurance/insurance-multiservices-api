@@ -24,8 +24,8 @@ import settingsLogRoutes from './routes/settingsLog';
 import leadRoutes from './routes/leadRoutes';
 import agencyProfileRoutes from './routes/agencyProfileRoutes';
 
-// ⬇️ NUEVO: carrier-lines (LOB + carrier + state)
-import carrierLinesRoutes from './routes/carrierLines';
+// 👇 NUEVO: import del seed
+import { seedCarrierLines } from './utils/seedCarrierLines';
 
 dotenv.config();
 
@@ -47,7 +47,6 @@ const allowedOrigins = [
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Muchos clientes/healthchecks no envían Origin -> permitir
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
@@ -56,7 +55,6 @@ const corsOptions: cors.CorsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Preflight antes de rutas
 app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
 
@@ -85,10 +83,7 @@ app.use('/api/product-categories', productCategoryRoutes);
 // entonces monta el router en /api:
 app.use('/api', policyRoutes);
 
-// Opción B: si DENTRO de routes/policies.ts usas rutas “planas” como
-// router.post('/', ...)
-// router.get('/', ...)
-// entonces comenta la línea de arriba y usa esta en su lugar:
+// Opción B: si DENTRO de routes/policies.ts usas rutas “planas”:
 // app.use('/api/policies', policyRoutes);
 
 app.use('/api/documents', documentRoutes);
@@ -106,17 +101,32 @@ app.use('/api/settings-log', settingsLogRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/agency-profile', agencyProfileRoutes);
 
-// ⬇️ NUEVO: Carrier Lines (meta y listado por filtros)
-app.use('/api/carrier-lines', carrierLinesRoutes);
-
 /* ───────────── Endpoint de prueba ───────────── */
 app.get('/api/messages/test', (_req, res) => {
   res.json({ message: 'Ruta mensajes activa' });
 });
 
+/* ───────────── Seed opcional en arranque ───────────── */
+// 👇 NUEVO: corre el seed SOLO si la variable SEED_CARRIER_LINES está activada
+async function runSeedIfEnabled() {
+  try {
+    const enabled = (process.env.SEED_CARRIER_LINES || '').toLowerCase();
+    if (enabled === '1' || enabled === 'true' || enabled === 'yes') {
+      console.log('🚜  Seeding carrier_lines (habilitado por SEED_CARRIER_LINES)...');
+      await seedCarrierLines(process.env.CARRIERS_XLSX_PATH);
+      console.log('✅  Seed carrier_lines completado.');
+    } else {
+      console.log('ℹ️  Seed de carrier_lines deshabilitado (SEED_CARRIER_LINES no está activo).');
+    }
+  } catch (err) {
+    console.error('❌  Error ejecutando seedCarrierLines:', err);
+  }
+}
+
 /* ───────────── Puerto ───────────── */
 const PORT = Number(process.env.PORT || 10000);
-// IMPORTANTE: host 0.0.0.0 para Render
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
+  // 👇 NUEVO: lanzamos el seed en segundo plano
+  void runSeedIfEnabled();
 });
