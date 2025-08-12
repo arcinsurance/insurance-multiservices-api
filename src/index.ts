@@ -24,6 +24,9 @@ import settingsLogRoutes from './routes/settingsLog';
 import leadRoutes from './routes/leadRoutes';
 import agencyProfileRoutes from './routes/agencyProfileRoutes';
 
+// ⬇️ NUEVO: carrier-lines (LOB + carrier + state)
+import carrierLinesRoutes from './routes/carrierLines';
+
 dotenv.config();
 
 const app = express();
@@ -40,7 +43,6 @@ const allowedOrigins = [
   'http://localhost:3000',                  // build local
   // agrega aquí tu dominio de frontend en Render si aplica:
   // 'https://tu-frontend.onrender.com',
-  // o usa una var de entorno FRONTEND_ORIGIN si prefieres
 ];
 
 const corsOptions: cors.CorsOptions = {
@@ -77,7 +79,6 @@ app.use('/api/change-password', changePasswordRoute);
 app.use('/api/product-categories', productCategoryRoutes);
 
 // ⬇⬇ ELIGE UNA OPCIÓN PARA policies ⬇⬇
-
 // Opción A: si DENTRO de routes/policies.ts usas rutas como
 // router.post('/clients/:clientId/policies', ...)
 // router.get('/clients/:clientId/policies', ...)
@@ -104,6 +105,9 @@ app.use('/api/commission-rates', commissionRatesRoutes);
 app.use('/api/settings-log', settingsLogRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/agency-profile', agencyProfileRoutes);
+
+// ⬇️ NUEVO: Carrier Lines (meta y listado por filtros)
+app.use('/api/carrier-lines', carrierLinesRoutes);
 
 /* ───────────── Endpoint de prueba ───────────── */
 app.get('/api/messages/test', (_req, res) => {
