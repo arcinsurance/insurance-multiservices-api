@@ -1,0 +1,162 @@
+/* scripts/seed-carrier-lines.js
+ * Carga un Excel (Carriers.xlsx) y hace UPSERT en la tabla carrier_lines (MySQL).
+ * Uso:
+ *   node scripts/seed-carrier-lines.js ./Carriers.xlsx
+ * Requisitos:
+ *   npm i mysql2 xlsx dotenv
+ *   .env con DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+ */
+
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config();
+const xlsx = require('xlsx');
+const mysql = require('mysql2/promise');
+
+const EXCEL_PATH = process.argv[2] || './Carriers.xlsx';
+
+// Mapea nombres de estados a códigos 2 letras
+const STATE_MAP = {
+  'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR',
+  'CALIFORNIA': 'CA', 'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE',
+  'DISTRICT OF COLUMBIA': 'DC', 'WASHINGTON DC': 'DC', 'DC': 'DC',
+  'FLORIDA': 'FL', 'GEORGIA': 'GA', 'HAWAII': 'HI', 'IDAHO': 'ID',
+  'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA', 'KANSAS': 'KS',
+  'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
+  'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS',
+  'MISSOURI': 'MO', 'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV',
+  'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ', 'NEW MEXICO': 'NM', 'NEW YORK': 'NY',
+  'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH', 'OKLAHOMA': 'OK',
+  'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
+  'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT',
+  'VERMONT': 'VT', 'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV',
+  'WISCONSIN': 'WI', 'WYOMING': 'WY', 'PUERTO RICO': 'PR'
+};
+
+const normalizeLOB = (v) => {
+  if (!v) return null;
+  const s = String(v).trim().toLowerCase();
+  if (s.startsWith('aca')) return 'ACA';
+  if (s.startsWith('medicare')) return 'Medicare';
+  if (s.startsWith('life')) return 'Life';
+  if (s.startsWith('supp')) return 'Supplementary';
+  // Si tu Excel usa otras variantes, agrega aquí.
+  return null;
+};
+
+const normalizeState = (v) => {
+  if (!v) return null;
+  let s = String(v).trim();
+  if (!s) return null;
+  if (s.length === 2) return s.toUpperCase();
+  const key = s.toUpperCase();
+  return STATE_MAP[key] || null;
+};
+
+const normalizeId = (lob, carrier, state) =>
+  `${lob}|${carrier}|${state}`.replace(/[^A-Za-z0-9]+/g, '-').toLowerCase().slice(0, 80);
+
+async function main() {
+  // 1) Validaciones iniciales
+  const abs = path.resolve(EXCEL_PATH);
+  if (!fs.existsSync(abs)) {
+    console.error(`❌ No se encontró el archivo Excel: ${abs}`);
+    process.exit(1);
+  }
+
+  // 2) Conexión MySQL
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'crm_insurance',
+    multipleStatements: true
+  });
+
+  // 3) Asegurar tabla
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS carrier_lines (
+      id VARCHAR(80) NOT NULL,
+      lob VARCHAR(32) NOT NULL,
+      carrier VARCHAR(128) NOT NULL,
+      state CHAR(2) NOT NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_lob_carrier_state (lob, carrier, state)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  // 4) Leer Excel
+  const wb = xlsx.readFile(abs);
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const json = xlsx.utils.sheet_to_json(ws, { defval: '' });
+
+  if (!Array.isArray(json) || json.length === 0) {
+    console.error('❌ La hoja está vacía o no se pudo parsear.');
+    process.exit(1);
+  }
+
+  // Descubrir columnas por nombre probable
+  const pick = (row, keys) => {
+    for (const k of keys) {
+      if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+        return row[k];
+      }
+    }
+    return '';
+  };
+
+  let inserts = 0, updates = 0, skipped = 0;
+
+  const upsertSQL = `
+    INSERT INTO carrier_lines (id, lob, carrier, state)
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      lob = VALUES(lob),
+      carrier = VALUES(carrier),
+      state = VALUES(state);
+  `;
+
+  await conn.beginTransaction();
+  try {
+    for (const row of json) {
+      const rawLOB = pick(row, ['LOB', 'lob', 'Line of Business', 'line_of_business', 'Linea of Business', 'Linea', 'LoB']);
+      const rawCarrier = pick(row, ['Carrier', 'carrier', 'Aseguradora', 'aseguradora']);
+      const rawState = pick(row, ['State', 'state', 'Estado', 'estado']);
+
+      const lob = normalizeLOB(rawLOB);
+      const carrier = String(rawCarrier || '').trim();
+      const state = normalizeState(rawState);
+
+      if (!lob || !carrier || !state) {
+        skipped++;
+        continue;
+      }
+
+      const id = normalizeId(lob, carrier, state);
+
+      const [res] = await conn.execute(upsertSQL, [id, lob, carrier, state]);
+      // MySQL: affectedRows = 1 (insert), 2 (update), 0 (no-op)
+      const info = res && typeof res === 'object' ? res : {};
+      const affected = info.affectedRows || 0;
+      if (affected === 1) inserts++;
+      else if (affected === 2) updates++;
+      else skipped++; // duplicado exacto sin cambios
+    }
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    console.error('❌ Error en la transacción:', err);
+    process.exit(1);
+  } finally {
+    await conn.end();
+  }
+
+  console.log(`✅ Seed terminado. Insertados: ${inserts}. Actualizados: ${updates}. Omitidos: ${skipped}.`);
+}
+
+main().catch((e) => {
+  console.error('❌ Error general:', e);
+  process.exit(1);
+});
